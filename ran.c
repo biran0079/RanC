@@ -42,6 +42,12 @@ void ignore_line() {
   ignore_char();
 }
 
+void ignore_includes() {
+  while (peek_char() == '#') {
+    ignore_line();
+  }
+}
+
 void check(int state, char* msg) {
   if (!state) {
     fputs(msg, stderr);
@@ -105,6 +111,8 @@ int check_and_eat_char(char c) {
 
 void read_token() {
   ignore_spaces();
+  ignore_includes();
+  ignore_spaces();
   token_len = 0;
   if (is_letter(peek_char())) {
     while (is_letter(peek_char()) 
@@ -144,8 +152,6 @@ void read_token() {
     eat_char();
     check_and_eat_char('&');
     token_type = operator_token;
-  } else if(peek_char() == '#') {
-    ignore_line();
   } else if (strchr("!+-*,><", peek_char())) {
     eat_char();
     token_type = operator_token;
@@ -153,7 +159,7 @@ void read_token() {
     eat_char();
     token_type = other_token;
   } else {
-    check(0, "unkonwn token");  
+    check(0, "unknown token");
   }
   token[token_len] = 0;
 }
