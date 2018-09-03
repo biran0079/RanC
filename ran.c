@@ -241,7 +241,7 @@ char* read_token() {
       eat_char();
     }
     token_type = operator_token;
-  } else if (strchr("+-*,", peek_char())) {
+  } else if (strchr("+-*/%,", peek_char())) {
     eat_char();
     token_type = operator_token;
   } else if (strchr("[](){};", peek_char())) {
@@ -390,6 +390,17 @@ void process_expr1() {
     process_expr0();
     printf("pop ebx\n");
     printf("imul eax, ebx\n");
+  } else if (!strcmp("/", peek_token()) || !strcmp("%", peek_token())) {
+    printf("push eax\n");
+    int remainder = read_token()[0] == '%';
+    process_expr0();
+    printf("mov ebx, eax\n");
+    printf("pop eax\n");
+    printf("cdq\n");
+    printf("idiv ebx\n");
+    if (remainder) {
+      printf("mov eax, edx\n");
+    }
   }
 }
 
