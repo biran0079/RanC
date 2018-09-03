@@ -8,11 +8,11 @@ function test_with() {
     echo "testing $f"
     $ranc < $f > a.s
     gcc -m32 a.s
-    ./a.out > actual.out
-    expect=${f%.c}.out
-    diff actual.out $expect
+    ./a.out > actual.output
+    expect=${f%.c}.output
+    diff actual.output $expect
     echo "passed"
-    rm a.s a.out actual.out
+    rm a.s a.out actual.output
   done
 }
 
