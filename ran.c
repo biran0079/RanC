@@ -97,7 +97,7 @@ int lookup_local(char* s) {
     }
     i = i + 1;
   }
-  return 0 - 1;
+  return -1;
 }
 
 int lookup_param(char* s) {
@@ -108,7 +108,7 @@ int lookup_param(char* s) {
     }
     i = i + 1;
   }
-  return 0 - 1;
+  return  -1;
 }
 
 int new_temp_label() {
@@ -613,7 +613,7 @@ void process_prog() {
 }
 
 void init() {
-  EOF = 0 - 1;
+  EOF = -1;
   token = malloc(MAX_TOKEN_LEN + 1);  
   token_len = 0;
   local = malloc(MAX_LOCAL_COUNT * WORD_SIZE);
