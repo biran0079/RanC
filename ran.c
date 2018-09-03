@@ -375,6 +375,9 @@ void process_expr0() {
     printf("mov eax, offset _%d\n", string_label);
   } else if (type == char_token) {
     printf("mov eax, %s\n", read_token());
+  } else if (matche_token("-")) {
+    check(peek_token_type() == int_token, "- followed by non-integer\n");
+    printf("mov eax, -%s\n", read_token());
   } else {
     process_object();
   }
