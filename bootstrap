@@ -1,0 +1,4 @@
+#!/bin/bash
+./ranc < ran.c > ran.s
+gcc -m32 ran.s -o ranc
+rm ran.s
