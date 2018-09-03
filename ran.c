@@ -1,6 +1,13 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
+char getchar();
+int printf();
+void exit();
+int strcmp();
+char* strdup();
+void* malloc();
+void free();
+int strchr();
+
+int EOF;
 
 int int_token = 0;
 int string_token = 1;
@@ -32,7 +39,7 @@ int param_count;
 
 void check(int state, char* msg) {
   if (!state) {
-    fputs(msg, stderr);
+    printf(msg);
     exit(1);
   }
 }
@@ -118,7 +125,7 @@ char peek_char() {
 }
 
 void append_char(char c) {
-  token[token_len] = c;
+  (token + token_len)[0] = c;
   token_len = token_len + 1;
   check(token_len <= MAX_TOKEN_LEN, "max token len exceeded\n");
 }
@@ -243,7 +250,7 @@ char* read_token() {
   } else {
     check(0, "unknown token");
   }
-  token[token_len] = 0;
+  append_char(0);
   return token;
 }
 
@@ -322,7 +329,12 @@ void process_object() {
       process_expr();
       check_and_ignore_token("]");
       printf("pop ebx\n");
-      printf("lea eax dword ptr [eax + ebx]\n");
+      if (strcmp(peek_token(), "=") == 0) {
+       op = "lea";
+      } else {
+        op = "mov";
+      }
+      printf("%s eax, dword ptr [eax * %d + ebx]\n", op, WORD_SIZE);
     } else {
       check_and_ignore_token("(");
       int start_label = new_temp_label();
@@ -350,11 +362,6 @@ void process_object() {
 }
 
 void process_expr0() {
-  if (matche_token("(")) {
-    process_expr();
-    check_and_ignore_token(")");
-    return;
-  }
   int type = peek_token_type();
   if (type == int_token) {
     printf("mov eax, %s\n", read_token());
@@ -376,8 +383,10 @@ void process_expr0() {
 void process_expr1() {
   process_expr0();
   if (matche_token("*")) {
-    printf("mul\n");
+    printf("push eax\n");
     process_expr0();
+    printf("pop ebx\n");
+    printf("imul eax, ebx\n");
   }
 }
 
@@ -402,7 +411,7 @@ void process_expr3() {
     process_expr3();
     printf("cmp eax, 0\n");
     printf("mov eax, 0\n");
-    printf("sete eax\n");
+    printf("sete al\n");
   } else {
     process_expr2();
     char* inst;
@@ -434,10 +443,9 @@ void process_expr4() {
   process_expr3();
   if (matche_token("&&")) {
     int end_label = new_temp_label();
-    process_expr4();
     printf("cmp eax, 0\n");
     printf("jz _%d\n", end_label);
-    process_expr();
+    process_expr4();
     printf("_%d:\n", end_label);
   }
 }
@@ -448,7 +456,7 @@ void process_expr5() {
     int end_label = new_temp_label();
     printf("cmp eax, 0\n");
     printf("jnz _%d\n", end_label);
-    process_expr4();
+    process_expr5();
     printf("_%d:\n", end_label);
   }
 }
@@ -501,19 +509,19 @@ void process_stmt() {
 
     printf("_%d:\n", endif_label);
   } else if (matche_token("while")) {
-    int do_label = new_temp_label();
+    int while_label = new_temp_label();
     int endwhile_label = new_temp_label();
+    printf("_%d:\n", while_label);
     check_and_ignore_token("(");
     process_expr();
     check_and_ignore_token(")");
 
-    printf("_%d:\n", do_label);
-    printf("cmp eax 0\n");
+    printf("cmp eax, 0\n");
     printf("je _%d\n", endwhile_label);
 
     process_block();
 
-    printf("jmp _%d\n", do_label);
+    printf("jmp _%d\n", while_label);
     printf("_%d:\n", endwhile_label);
   } else if (matche_token("return")) {
     if (!matche_token(";")) {
@@ -587,7 +595,8 @@ void process_decl() {
     }
   } else if (matche_token(";")) {
     printf(".section .data\n");
-    printf("%s: .long\n", name);
+    printf("%s: .long 0\n", name);
+    printf(".section .text\n");
   } else {
     check(0, "illegal declaration syntax");
   }
@@ -601,6 +610,7 @@ void process_prog() {
 }
 
 void init() {
+  EOF = 0 - 1;
   token = malloc(MAX_TOKEN_LEN + 1);  
   token_len = 0;
   local = malloc(MAX_LOCAL_COUNT * WORD_SIZE);

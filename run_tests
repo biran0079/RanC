@@ -1,17 +1,33 @@
 #!/bin/bash
 set -e
 gcc ran.c -o ranc
-for f in `ls test/*.c`; do
-  echo "testing $f"
-  ./ranc < $f > a.s
-  gcc -m32 a.s
-  ./a.out > actual.out
-  expect=${f%.c}.out
-  diff actual.out $expect
-  if [ $? -ne 0 ]; then
-    echo "failed"
-    exit -1
-  fi
-  echo "passed"
-  rm a.s a.out actual.out
-done
+
+function test_with() {
+  ranc=$1
+  for f in `ls test/*.c`; do
+    echo "testing $f"
+    $ranc < $f > a.s
+    gcc -m32 a.s
+    ./a.out > actual.out
+    expect=${f%.c}.out
+    diff actual.out $expect
+    echo "passed"
+    rm a.s a.out actual.out
+  done
+}
+
+test_with ./ranc
+echo
+echo "****** test bootstraping ******"
+echo
+./ranc < ran.c > ran.s
+gcc -m32 ran.s -o ranc_bootstrap
+test_with ./ranc_bootstrap
+
+echo
+echo "****** make sure generated assembly matches ******"
+echo
+./ranc_bootstrap < ran.c | diff ran.s -
+echo "passed"
+rm ranc_bootstrap
+rm ranc
