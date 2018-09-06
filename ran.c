@@ -14,7 +14,10 @@ int string_token = 1;
 int char_token  = 2;
 int symbol_token = 3;
 int operator_token = 4;
-int other_token = 5;
+int comment_token = 5;
+int other_token = 6;
+int eof_token = 7;
+
 int MAX_TOKEN_LEN = 1023;
 int MAX_LOCAL_COUNT = 1024;
 int MAX_FUNCTION_COUNT = 10000;
@@ -176,12 +179,7 @@ int check_and_eat_char(char c) {
   eat_char();
 }
 
-char* read_token() {
-  if (peeked_token) {
-    char* res = peeked_token;
-    peeked_token = 0;
-    return res;
-  }
+char* do_read_token() {
   token_len = 0;
   ignore_spaces();
   ignore_includes();
@@ -233,17 +231,62 @@ char* read_token() {
       eat_char();
     }
     token_type = operator_token;
-  } else if (strchr("+-*/%,", peek_char())) {
+  } else if (peek_char() == '/') {
+    eat_char();
+    if (peek_char() == '/') {
+      eat_char();
+      while (peek_char() != EOF && peek_char() != '\n') {
+        ignore_char();
+      }
+      token_type = comment_token;
+    } else if (peek_char() == '*') {
+      eat_char();
+      int state = 0;
+      while (state != 2) {
+        if (state == 0) {
+          if (peek_char() == '*') {
+            state = 1;
+          } 
+        } else {
+          if (peek_char() == '/') {
+            state = 2;
+          } else if (peek_char() != '*') {
+            state = 0;
+          }
+        }
+        ignore_char();
+      }
+      token_type = comment_token;
+    } else {
+      token_type = operator_token;
+    }
+  } else if (strchr("+-*%,", peek_char())) {
     eat_char();
     token_type = operator_token;
   } else if (strchr("[](){};", peek_char())) {
     eat_char();
     token_type = other_token;
+  } else if (peek_char() == EOF) {
+    token_type = eof_token; 
   } else {
     check(0, "unknown token");
   }
   append_char(0);
   return token;
+}
+
+char* read_token() {
+  if (peeked_token) {
+    char* res = peeked_token;
+    peeked_token = 0;
+    return res;
+  }
+  while (1) {
+    do_read_token();
+    if (token_type != comment_token) {
+      return token;
+    }
+  }
 }
 
 void load_peeked_token() {
@@ -275,8 +318,7 @@ int matche_token(char* s) {
 }
 
 int end_of_file() {
-  ignore_spaces();
-  return peek_char() == EOF;
+  return peek_token_type() == eof_token;
 }
 
 void check_and_ignore_token(char* s) {
