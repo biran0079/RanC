@@ -9,7 +9,7 @@ test: build
  
 coverage:
 	gcc -fno-builtin -coverage -O0 ran.c -o ranc
-	./ranc < ran.c > /dev/null
+	./run_tests
 	gcov ran.c
 
 all: build
