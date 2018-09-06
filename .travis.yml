@@ -1,4 +1,8 @@
 language: c
 compiler: gcc
 dist: trusty
-
+script: make && make test
+addons:
+  apt:
+    packages:
+    - gcc-multilib

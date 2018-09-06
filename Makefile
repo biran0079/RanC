@@ -1,8 +1,10 @@
 build: ran.c
-	./ranc < ran.c > ran.s
-	gcc -m32 ran.s -o ranc
+	./bootstrap
 
 clean:
 	rm ran.s
   
+test: build
+	./run_tests
+
 all: build
