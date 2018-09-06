@@ -1,8 +1,11 @@
 language: c
 compiler: gcc
 dist: trusty
-script: make && make test
+script: make && make test && make coverage
 addons:
   apt:
     packages:
     - gcc-multilib
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
