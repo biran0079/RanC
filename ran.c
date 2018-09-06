@@ -153,11 +153,6 @@ void ignore_includes() {
   }
 }
 
-void check_and_ignore_char(char c) {
-  check(peek_char() == c, "check_and_ignore_char");
-  cur_char = 0;
-}
-
 int is_space(char c) {
   return c == ' ' || (c == '\t' || c == '\n');
 }
@@ -174,9 +169,6 @@ void ignore_spaces() {
   while (is_space(peek_char())) { 
     ignore_char();
   } 
-}
-
-void eat_quoted_char() {
 }
 
 int check_and_eat_char(char c) {
