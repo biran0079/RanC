@@ -1,4 +1,4 @@
-# RanC
+# RanC [![Build Status](https://travis-ci.org/biran0079/RanC.svg?branch=master)](https://travis-ci.org/biran0079/RanC)
 A self-hosting compiler for a subset of C. 
 
 ## How to use
