@@ -596,8 +596,13 @@ void process_block() {
 }
 
 void process_decl() {
+  int extern_decl = 0;
+  if (matche_token("extern")) {
+    extern_decl = 1;
+  }
   ignore_type();
   char* name = strdup(read_token());
+  printf(".globl %s\n", name);
   if (matche_token("=")) {
     printf(".section .data\n");
     check(peek_token_type() == int_token,
@@ -626,7 +631,6 @@ void process_decl() {
       printf("pop ebp\n");
       printf("ret\n");
 
-      printf(".globl %s\n", name);
       printf("%s:\n", name);
       printf("push ebp\n");
       printf("mov ebp, esp\n");
@@ -637,9 +641,11 @@ void process_decl() {
       check_and_ignore_token(";");
     }
   } else if (matche_token(";")) {
-    printf(".section .data\n");
-    printf("%s: .long 0\n", name);
-    printf(".section .text\n");
+    if (!extern_decl) {
+      printf(".section .data\n");
+      printf("%s: .long 0\n", name);
+      printf(".section .text\n");
+    }
   } else {
     check(0, "illegal declaration syntax");
   }
