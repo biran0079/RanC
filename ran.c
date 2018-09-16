@@ -7,6 +7,8 @@ void* malloc();
 void free();
 int strchr();
 
+void check();
+
 int EOF;
 
 int int_token = 0;
@@ -39,13 +41,6 @@ int local_count;
 
 char** param;
 int param_count;
-
-void check(int state, char* msg) {
-  if (!state) {
-    printf(msg);
-    exit(1);
-  }
-}
 
 void register_function(char* s) {
   check(function_count < MAX_FUNCTION_COUNT, "too many functions\n");
