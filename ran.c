@@ -9,6 +9,7 @@ int strchr();
 
 void check();
 
+extern int WORD_SIZE;
 int EOF;
 
 int int_token = 0;
@@ -23,7 +24,6 @@ int eof_token = 7;
 int MAX_TOKEN_LEN = 1023;
 int MAX_LOCAL_COUNT = 1024;
 int MAX_FUNCTION_COUNT = 10000;
-int WORD_SIZE = 4;
 
 char* token;
 int token_len; 

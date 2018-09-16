@@ -1,15 +1,21 @@
-build: ran.c base.c
-	./bootstrap
+%.s: %.c ranc
+	./ranc < $< > $@
+
+ranc: ran.s base.s
+	gcc -m32 ran.s base.s -o ranc
 
 clean:
-	rm ran.s
+	rm *.s
   
-test: build
+test: ranc
 	./run_tests
+
+tokenizer_main: base.s tokenizer.s tokenizer_main.s
+	gcc -m32 tokenizer_main.s tokenizer.s base.s -o ranc
  
 coverage:
 	gcc -fno-builtin -coverage -O0 ran.c base.c -o ranc
 	./run_tests
-	gcov ran.c
+	gcov ran.c base.c
 
-all: build
+all: ranc

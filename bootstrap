@@ -1,5 +1,0 @@
-#!/bin/bash
-./ranc < ran.c > ran.s
-./ranc < base.c > base.s
-gcc -m32 ran.s base.s -o ranc
-rm ran.s

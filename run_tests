@@ -16,8 +16,3 @@ function test_with() {
 }
 
 test_with ./ranc
-echo
-echo "****** test bootstraping ******"
-echo
-./bootstrap
-test_with ./ranc
