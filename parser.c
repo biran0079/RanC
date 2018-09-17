@@ -4,6 +4,7 @@ int strcmp();
 int strlen();
 void strcat();
 int printf();
+void free();
 
 extern int* token_type;
 extern char** token;
@@ -50,7 +51,9 @@ int ge_node = 28;
 int return_node = 29;
 int not_node = 30;
 int ne_node = 31;
-int node_type_num = 32;
+int extern_var_decl_node = 32;
+int var_init_node = 33;
+int node_type_num = 34;
 
 char** node_type_str;
 int* node_type;
@@ -105,15 +108,18 @@ void init_parser() {
   node_type_str[return_node] = "return";
   node_type_str[not_node] = "not";
   node_type_str[ne_node] = "ne";
+  node_type_str[extern_var_decl_node] = "extern_var";
+  node_type_str[var_init_node] = "var_init";
 }
 
 int new_node(int type) {
   int res = node_num;
   node_num = node_num + 1;
+  check(node_num <= MAX_NODE_NUM, "too many nodes");
   node_type[res] = type;
   node_child_num[res] = 0;
   node_child_cap[res] = 2;
-  node_child[res] = malloc(node_child_cap[res] * WORD_SIZE);
+  node_child[res] = malloc(2 * WORD_SIZE);
   node_payload[res] = 0;
   return res;
 }
@@ -126,12 +132,13 @@ int new_symbol_node(char* s) {
 
 void append_child(int par, int child) {
   if (node_child_num[par] == node_child_cap[par]) {
-    int* t = malloc(node_child_cap[par] * 2);
+    int* t = malloc((node_child_cap[par] * 2) * WORD_SIZE);
     int i = 0;
     while (i < node_child_num[par]) {
       t[i] = node_child[par][i];
       i = i + 1;
     }
+    free(node_child[par]);
     node_child[par] = t;
     node_child_cap[par] = node_child_cap[par] * 2;
   }
@@ -150,7 +157,6 @@ void skip_comment_tokens() {
 }
 
 void inc_next_token_idx() {
-  //printf("consumed %s\n", token[next_token_idx]);
   next_token_idx = next_token_idx + 1;
   skip_comment_tokens();
 }
@@ -464,9 +470,13 @@ int parse_params() {
 }
 
 int parse_decl() {
+  int extern_decl = 0;
+  if (matche_token("extern")) {
+    extern_decl = 1;
+  }
+  ignore_type();
   int res;
   char* name = token[next_token_idx];
-  ignore_type();
   inc_next_token_idx();
   if (!strcmp(token[next_token_idx], "(")) {
     int params = parse_params();
@@ -482,7 +492,13 @@ int parse_decl() {
       check_and_ignore_token(";");
     }
   } else {
-    res = new_node(var_decl_node);
+    if (extern_decl) {
+      res = new_node(extern_var_decl_node);
+    } else if (!strcmp(token[next_token_idx], "=")) {
+      res = new_node(var_init_node);
+    } else {
+      res = new_node(var_decl_node);
+    }
     append_child(res, new_symbol_node(name));
     if (matche_token("=")) {
       append_child(res, parse_expr());

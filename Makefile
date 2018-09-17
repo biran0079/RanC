@@ -1,8 +1,12 @@
+FLAG=-g
+
 %.s: %.c ranc
 	./ranc < $< > $@
 
-ranc: ran.s base.s
-	gcc -m32 ran.s base.s -o ranc
+ranc: ran.c base.c
+	./ranc < ran.c > ran.s 
+	./ranc < base.c > base.s 
+	gcc $(FLAG) -m32 $^ -o $@
 
 clean:
 	rm *.s
@@ -10,9 +14,12 @@ clean:
 test: ranc
 	./run_tests
 
-tokenizer_main: base.s tokenizer.s tokenizer_main.s
-	gcc -m32 tokenizer_main.s tokenizer.s base.s -o ranc
+tokenizer: base.s tokenizer.s tokenizer_main.s
+	gcc $(FLAG) -m32 $^ -o $@
  
+parser: base.s parser.s parser_main.s tokenizer.s
+	gcc $(FLAG) -m32 $^ -o $@
+
 coverage:
 	gcc -fno-builtin -coverage -O0 ran.c base.c -o ranc
 	./run_tests
