@@ -40,6 +40,8 @@ extern int not_node;
 extern int ne_node;
 extern int extern_var_decl_node;
 extern int var_init_node;
+extern int break_node;
+extern int continue_node;
 extern int WORD_SIZE;
 
 extern char** node_type_str;
@@ -62,6 +64,11 @@ int atoi();
 int function_params; 
 // Label for function epilog. Needed for return statement.
 int return_label;
+
+// Label for breaking current loop.
+int break_label;
+// Label for continuing current loop.
+int continue_label;
 
 int tmp_label_count = 0;
 
@@ -323,10 +330,15 @@ void generate_stmt(int stmt) {
   } else if (t == while_do_node) {
     int while_label = new_temp_label();
     int endwhile_label = new_temp_label();
+    int old_break_label = break_label;
+    break_label = endwhile_label;
+    int old_continue_label = continue_label;
+    continue_label = while_label;
     printf("_%d:\n", while_label);
 
     generate_expr(node_child[stmt][0]);
 
+    printf("# while %d %d\n", continue_label, break_label);
     printf("cmp eax, 0\n");
     printf("je _%d\n", endwhile_label);
 
@@ -334,11 +346,18 @@ void generate_stmt(int stmt) {
 
     printf("jmp _%d\n", while_label);
     printf("_%d:\n", endwhile_label);
+
+    break_label = old_break_label;
+    continue_label = old_continue_label;
   } else if (t == return_node) {
     if (node_child_num[stmt] == 1) {
       generate_expr(node_child[stmt][0]);
     }
     printf("jmp _%d\n", return_label);
+  } else if (t == break_node) {
+    printf("jmp _%d\n", break_label);
+  } else if (t == continue_node) {
+    printf("jmp _%d\n", continue_label);
   } else if (t == var_init_node) {
     int index = lookup_local_var(get_symbol(node_child[stmt][0]));
     check(index >= 0, "local var not found");

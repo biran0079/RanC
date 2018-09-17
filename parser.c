@@ -53,7 +53,9 @@ int not_node = 30;
 int ne_node = 31;
 int extern_var_decl_node = 32;
 int var_init_node = 33;
-int node_type_num = 34;
+int break_node = 34;
+int continue_node = 35;
+int node_type_num = 36;
 
 char** node_type_str;
 int* node_type;
@@ -111,6 +113,8 @@ void init_parser() {
   node_type_str[ne_node] = "ne";
   node_type_str[extern_var_decl_node] = "extern_var";
   node_type_str[var_init_node] = "var_init";
+  node_type_str[break_node] = "break_node";
+  node_type_str[continue_node] = "continue_node";
 }
 
 int new_node(int type) {
@@ -435,6 +439,14 @@ int parse_stmt() {
     return parse_while();
   } else if (matche_token("return")) {
     return parse_return();
+  } else if (matche_token("break")) {
+    int res = new_node(break_node);
+    check_and_ignore_token(";");
+    return res;
+  } else if (matche_token("continue")) {
+    int res = new_node(continue_node);
+    check_and_ignore_token(";");
+    return res;
   } else if (is_base_type(token[next_token_idx])) {
     // If expression starts with a type, then parse as declaration.
     // parse_decl() handle function declaration as well, 
