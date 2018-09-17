@@ -12,7 +12,7 @@ ranc: base.c tokenizer.c parser.c ranc_main.c codegen_x86.c
 	gcc $(FLAG) -m32 $^ -o $@
 
 clean:
-	rm *.s
+	rm -f *.s *.gcno *.gcda *.gcov
   
 test: ranc
 	./run_tests
