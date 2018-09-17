@@ -3,14 +3,20 @@ A self-hosting compiler for a subset of C.
 
 ## How to use
 ```bash
-$ gcc ran.c -o ranc              # build compiler
-$ ./ranc < input.c > output.s    # compile C code to assembly
-$ gcc -m32 output.s -o output    # use gcc to assemble and link into binary executable
-$ ./output                       # run your program
+$ make ranc                      # bootstrap ranc
+$ ./ranc > a.s <<EOF             # compile C code to assembly
+void printf();
+int main() {
+  printf("hello world\n");
+  return 0;
+}
+EOF
+$ gcc -m32 a.s                   # use gcc to assemble and link into binary executable
+$ ./a.out                        # run your program
 ```
 ## How to test
 ```bash
-$ ./run_test
+$ make test
 ```
 ## Acknowledge
 Many ideas are borrowed from https://github.com/Fedjmike/mini-c.

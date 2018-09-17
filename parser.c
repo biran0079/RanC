@@ -75,6 +75,7 @@ void init_parser() {
   node_child_num = malloc(MAX_NODE_NUM * WORD_SIZE);
   node_child_cap = malloc(MAX_NODE_NUM * WORD_SIZE);
   node_payload = malloc(MAX_NODE_NUM * WORD_SIZE);
+  // segfalut without -m32 because node_type_str will overflow
   node_type_str = malloc(node_type_num * WORD_SIZE);
   node_type_str[prog_node] = "prog";
   node_type_str[var_decl_node] = "var";
@@ -362,7 +363,7 @@ int parse_expr4() {
 int parse_expr5() {
   int expr = parse_expr4();
   if (!strcmp("||", token[next_token_idx])) {
-    int res = new_node(and_node);
+    int res = new_node(or_node);
     append_child(res, expr);
     while (matche_token("||")) {
       append_child(res, parse_expr4());
