@@ -287,6 +287,10 @@ void generate_expr_internal(int expr, int lvalue) {
     }
     printf("call %s\n", fname);
     printf("add esp, %d\n", node_child_num[args] * WORD_SIZE);
+  } else if (t == negative_node) {
+    generate_expr(node_child[expr][0]);
+    printf("not eax\n");
+    printf("add eax, 1\n");
   } else if (t == var_decl_node) {
     // do nothing
   } else {
