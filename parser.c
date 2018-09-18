@@ -55,7 +55,11 @@ int extern_var_decl_node = 32;
 int var_init_node = 33;
 int break_node = 34;
 int continue_node = 35;
-int node_type_num = 36;
+int inc_prefix_node = 36;
+int dec_prefix_node = 37;
+int inc_suffix_node = 38;
+int dec_suffix_node = 39;
+int node_type_num = 40;
 
 char** node_type_str;
 int* node_type;
@@ -115,6 +119,10 @@ void init_parser() {
   node_type_str[var_init_node] = "var_init";
   node_type_str[break_node] = "break_node";
   node_type_str[continue_node] = "continue_node";
+  node_type_str[inc_prefix_node] = "inc_prefix";
+  node_type_str[dec_prefix_node] = "dec_prefix";
+  node_type_str[inc_suffix_node] = "inc_suffix";
+  node_type_str[dec_suffix_node] = "dec_suffix";
 }
 
 int new_node(int type) {
@@ -264,7 +272,26 @@ int parse_expr0() {
     inc_next_token_idx();
     return res;
   }
-  return parse_object();
+  if (matche_token("++")) {
+    res = new_node(inc_prefix_node);
+    append_child(res, parse_object());
+  } else if (matche_token("--")) {
+    res = new_node(dec_prefix_node);
+    append_child(res, parse_object());
+  } else {
+    res = parse_object();
+    int t;
+    if (matche_token("++")) {
+      t = res;
+      res = new_node(inc_suffix_node);
+      append_child(res, t);
+    } else if (matche_token("--")) {
+      t = res;
+      res = new_node(dec_suffix_node);
+      append_child(res, t);
+    }
+  }
+  return res;
 }
 
 int parse_expr1() {
