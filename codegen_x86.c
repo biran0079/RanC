@@ -77,9 +77,7 @@ int continue_label;
 int tmp_label_count = 0;
 
 int new_temp_label() {
-  int res = tmp_label_count;
-  tmp_label_count = tmp_label_count + 1;
-  return res;
+  return tmp_label_count++;
 }
 
 char* get_symbol(int cur) {
@@ -98,8 +96,7 @@ char* get_string(int cur) {
 }
 
 void register_local_var(char* s) {
-  local_var[local_var_num] = s;
-  local_var_num = local_var_num + 1;
+  local_var[local_var_num++] = s;
   check(local_var_num <= MAX_LOCAL_VARS, "too many local vars");
 }
 
@@ -112,7 +109,7 @@ int lookup_local_var(char* s) {
     if (!strcmp(s, local_var[i])) {
       return i;
     }
-    i = i + 1;
+    i++;
   }
   return -1;
 }
@@ -126,7 +123,7 @@ int lookup_param(char* s) {
     if (!strcmp(s, get_symbol(node_child[function_params][i]))) {
       return i;
     }
-    i = i + 1;
+    i++;
   }
   return -1;
 }
@@ -137,7 +134,7 @@ void register_local_vars(int root) {
   while (i < node_child_num[root]) {
     int cur = node_child[root][i];
     int t = node_type[cur];
-    i = i + 1;
+    i++;
     if (t == var_decl_node || t == var_init_node) {
       register_local_var(get_symbol(node_child[cur][0]));
     } else {
@@ -182,7 +179,7 @@ void generate_expr_internal(int expr, int lvalue) {
       generate_expr(node_child[expr][i]);
       printf("cmp eax, 0\n");
       printf("jnz _%d\n", end_label);
-      i = i + 1;
+      i++;
     }
     printf("_%d:\n", end_label);
   } else if (t == and_node) {
@@ -192,7 +189,7 @@ void generate_expr_internal(int expr, int lvalue) {
       generate_expr(node_child[expr][i]);
       printf("cmp eax, 0\n");
       printf("jz _%d\n", end_label);
-      i = i + 1;
+      i++;
     }
     printf("_%d:\n", end_label);
   } else if (t == not_node) {
@@ -287,7 +284,7 @@ void generate_expr_internal(int expr, int lvalue) {
     while (i >= 0) {
       generate_expr(node_child[args][i]);
       printf("push eax\n");
-      i = i - 1;
+      i--;
     }
     printf("call %s\n", fname);
     printf("add esp, %d\n", node_child_num[args] * WORD_SIZE);
@@ -399,7 +396,7 @@ void generate_stmts(int stmts) {
   int i = 0;
   while (i < node_child_num[stmts]) {
     generate_stmt(node_child[stmts][i]);
-    i = i + 1;  
+    i++;
   }
 }
 
@@ -424,7 +421,7 @@ void generate_code(int root) {
       // declare uninitialized global var
       printf("%s: .long 0\n", name);
     }
-    i = i + 1;
+    i++;
   }
   printf(".section .text\n");
   // generate code for functions
@@ -458,7 +455,7 @@ void generate_code(int root) {
 
       in_function = 0;
     }
-    i = i + 1;
+    i++;
   }
 }
 

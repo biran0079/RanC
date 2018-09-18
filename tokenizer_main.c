@@ -13,7 +13,7 @@ int main() {
   int i = 0;
   while (i < token_num) {
     printf("%s\t%s\n", token_type_str[token_type[i]], token[i]);
-    i = i + 1;
+    i++;
   }
   return 0;
 }

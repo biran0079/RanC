@@ -59,8 +59,7 @@ char peek_char() {
 }
 
 void append_char(char c) {
-  (buffer_token + buffer_len)[0] = c;
-  buffer_len = buffer_len + 1;
+  (buffer_token + buffer_len++)[0] = c;
   check(buffer_len <= MAX_TOKEN_LEN, "max token len exceeded\n");
 }
 
@@ -215,7 +214,7 @@ void tokenize() {
     read_single_token();
     token[token_num] = strdup(buffer_token);
     token_type[token_num] = buffer_token_type;
-    token_num = token_num + 1;
+    token_num++;
     check(token_num <= MAX_TOKEN_NUM, "too many tokens\n");
     last_token_type = buffer_token_type;
   }

@@ -126,8 +126,7 @@ void init_parser() {
 }
 
 int new_node(int type) {
-  int res = node_num;
-  node_num = node_num + 1;
+  int res = node_num++;
   check(node_num <= MAX_NODE_NUM, "too many nodes");
   node_type[res] = type;
   node_child_num[res] = 0;
@@ -149,14 +148,14 @@ void append_child(int par, int child) {
     int i = 0;
     while (i < node_child_num[par]) {
       t[i] = node_child[par][i];
-      i = i + 1;
+      i++;
     }
     free(node_child[par]);
     node_child[par] = t;
     node_child_cap[par] = node_child_cap[par] * 2;
   }
   node_child[par][node_child_num[par]] = child;
-  node_child_num[par] = node_child_num[par] + 1;
+  node_child_num[par]++;
 }
 
 int is_base_type(char* s) {
@@ -165,12 +164,12 @@ int is_base_type(char* s) {
 
 void skip_comment_tokens() {
   while (next_token_idx < token_num && token_type[next_token_idx] == comment_token) {
-    next_token_idx = next_token_idx + 1;
+    next_token_idx++;
   }
 }
 
 void inc_next_token_idx() {
-  next_token_idx = next_token_idx + 1;
+  next_token_idx++;
   skip_comment_tokens();
 }
 
@@ -563,9 +562,8 @@ int parse() {
 }
 
 void print_space(int n) {
-  while (n > 0) {
+  while (n--) {
     printf(" ");
-    n = n - 1;
   }
 }
 
@@ -579,7 +577,7 @@ void print_ast_internal(int root, int indent) {
   while (i < node_child_num[root]) {
     printf("\n");
     print_ast_internal(node_child[root][i], indent + 2);
-    i = i + 1;
+    i++;
   }
   printf(")");
 }
