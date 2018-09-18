@@ -1,4 +1,5 @@
 void* malloc();
+void* realloc();
 void check();
 int strcmp();
 int strlen();
@@ -144,15 +145,8 @@ int new_symbol_node(char* s) {
 
 void append_child(int par, int child) {
   if (node_child_num[par] == node_child_cap[par]) {
-    int* t = malloc(node_child_cap[par] * 2 * WORD_SIZE);
-    int i = 0;
-    while (i < node_child_num[par]) {
-      t[i] = node_child[par][i];
-      i++;
-    }
-    free(node_child[par]);
-    node_child[par] = t;
     node_child_cap[par] = node_child_cap[par] * 2;
+    node_child[par] = realloc(node_child[par], node_child_cap[par] * WORD_SIZE);
   }
   node_child[par][node_child_num[par]] = child;
   node_child_num[par]++;
