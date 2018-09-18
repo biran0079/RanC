@@ -42,6 +42,10 @@ extern int extern_var_decl_node;
 extern int var_init_node;
 extern int break_node;
 extern int continue_node;
+extern int inc_prefix_node;
+extern int inc_suffix_node;
+extern int dec_prefix_node;
+extern int dec_suffix_node;
 extern int WORD_SIZE;
 
 extern char** node_type_str;
@@ -290,6 +294,24 @@ void generate_expr_internal(int expr, int lvalue) {
   } else if (t == negative_node) {
     generate_expr(node_child[expr][0]);
     printf("not eax\n");
+    printf("add eax, 1\n");
+  } else if (t == inc_prefix_node) {
+    generate_expr_internal(node_child[expr][0], 1);
+    printf("add dword ptr [eax], 1\n");
+    printf("mov eax, dword ptr [eax]\n");
+  } else if (t == dec_prefix_node) {
+    generate_expr_internal(node_child[expr][0], 1);
+    printf("sub dword ptr [eax], 1\n");
+    printf("mov eax, dword ptr [eax]\n");
+  } else if (t == inc_suffix_node) {
+    generate_expr_internal(node_child[expr][0], 1);
+    printf("add dword ptr [eax], 1\n");
+    printf("mov eax, dword ptr [eax]\n");
+    printf("sub eax, 1\n");
+  } else if (t == dec_suffix_node) {
+    generate_expr_internal(node_child[expr][0], 1);
+    printf("sub dword ptr [eax], 1\n");
+    printf("mov eax, dword ptr [eax]\n");
     printf("add eax, 1\n");
   } else if (t == var_decl_node) {
     // do nothing

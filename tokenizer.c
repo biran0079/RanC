@@ -191,7 +191,11 @@ void read_single_token() {
       buffer_token_type = operator_token;
     }
   } else if (strchr("+-*%,", peek_char())) {
+    char c = peek_char();
     eat_char();
+    if ((c == '+' || c == '-') && peek_char() == c) {
+      eat_char();
+    }
     buffer_token_type = operator_token;
   } else if (strchr("[](){};", peek_char())) {
     eat_char();
