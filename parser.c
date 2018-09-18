@@ -144,7 +144,7 @@ int new_symbol_node(char* s) {
 
 void append_child(int par, int child) {
   if (node_child_num[par] == node_child_cap[par]) {
-    int* t = malloc((node_child_cap[par] * 2) * WORD_SIZE);
+    int* t = malloc(node_child_cap[par] * 2 * WORD_SIZE);
     int i = 0;
     while (i < node_child_num[par]) {
       t[i] = node_child[par][i];

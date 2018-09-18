@@ -13,7 +13,7 @@ int MAX_TOKEN_LEN = 1023;
 
 char cur_char = 0;
 
-int EOF;
+int EOF = -1;
 
 int* token_type;
 char** token;
@@ -36,7 +36,6 @@ int token_type_num = 8;
 char** token_type_str;
 
 void init_tokenizer() {
-  EOF = -1;
   token_type = malloc(MAX_TOKEN_NUM * WORD_SIZE);
   token = malloc(MAX_TOKEN_NUM * WORD_SIZE);
   buffer_token = malloc(MAX_TOKEN_LEN + 1);
