@@ -46,6 +46,7 @@ extern int inc_prefix_node;
 extern int inc_suffix_node;
 extern int dec_prefix_node;
 extern int dec_suffix_node;
+extern int do_while_node;
 extern int WORD_SIZE;
 
 extern char** node_type_str;
@@ -361,7 +362,6 @@ void generate_stmt(int stmt) {
 
     generate_expr(node_child[stmt][0]);
 
-    printf("# while %d %d\n", continue_label, break_label);
     printf("cmp eax, 0\n");
     printf("je _%d\n", endwhile_label);
 
@@ -369,6 +369,23 @@ void generate_stmt(int stmt) {
 
     printf("jmp _%d\n", while_label);
     printf("_%d:\n", endwhile_label);
+
+    break_label = old_break_label;
+    continue_label = old_continue_label;
+  } else if (t == do_while_node) {
+    int while_label = new_temp_label();
+    int old_break_label = break_label;
+    break_label = new_temp_label();
+    int old_continue_label = continue_label;
+    continue_label = new_temp_label();
+
+    printf("_%d:\n", while_label);
+    generate_stmts(node_child[stmt][0]);
+    printf("_%d:\n", continue_label);
+    generate_expr(node_child[stmt][1]);
+    printf("cmp eax, 0\n");
+    printf("jne _%d\n", while_label);
+    printf("_%d:\n", break_label);
 
     break_label = old_break_label;
     continue_label = old_continue_label;

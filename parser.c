@@ -60,7 +60,8 @@ int inc_prefix_node = 36;
 int dec_prefix_node = 37;
 int inc_suffix_node = 38;
 int dec_suffix_node = 39;
-int node_type_num = 40;
+int do_while_node = 40;
+int node_type_num = 41;
 
 char** node_type_str;
 int* node_type;
@@ -124,6 +125,7 @@ void init_parser() {
   node_type_str[dec_prefix_node] = "dec_prefix";
   node_type_str[inc_suffix_node] = "inc_suffix";
   node_type_str[dec_suffix_node] = "dec_suffix";
+  node_type_str[do_while_node] = "do_while";
 }
 
 int new_node(int type) {
@@ -441,6 +443,17 @@ int parse_while() {
   return res;
 }
 
+int parse_do_while() {
+  int res = new_node(do_while_node);
+  append_child(res, parse_block());
+  check_and_ignore_token("while");
+  check_and_ignore_token("(");
+  append_child(res, parse_expr());
+  check_and_ignore_token(")");
+  check_and_ignore_token(";");
+  return res;
+}
+
 int parse_return() {
   int res = new_node(return_node);
   if (!matche_token(";")) {
@@ -457,6 +470,8 @@ int parse_stmt() {
     return parse_if();
   } else if (matche_token("while")) {
     return parse_while();
+  } else if (matche_token("do")) {
+    return parse_do_while();
   } else if (matche_token("return")) {
     return parse_return();
   } else if (matche_token("break")) {

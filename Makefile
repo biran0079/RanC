@@ -9,7 +9,7 @@ ranc: base.c tokenizer.c parser.c ranc_main.c codegen_x86.c
 	./ranc < parser.c > parser.s 
 	./ranc < codegen_x86.c > codegen_x86.s
 	./ranc < ranc_main.c > ranc_main.s 
-	gcc $(FLAG) -m32 $^ -o $@
+	gcc $(FLAG) -m32 base.s tokenizer.s parser.s codegen_x86.s ranc_main.s -o $@
 
 clean:
 	rm -f *.s *.gcno *.gcda *.gcov
