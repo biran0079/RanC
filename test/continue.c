@@ -24,5 +24,17 @@ int main() {
       printf("%d %d\n", i, j);
     }
   }
+  i = 0;
+  do {
+    if (i++ % 2 == 0) {
+      continue;
+    }
+    printf("%d\n", i);
+  } while (i < 10);
+  for (int j = 0; j < 10; j++) {
+    if (j % 2 == 1) {
+      printf("%d\n", j);
+    }
+  }
   return 0;
 }

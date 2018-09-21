@@ -47,6 +47,8 @@ extern int inc_suffix_node;
 extern int dec_prefix_node;
 extern int dec_suffix_node;
 extern int do_while_node;
+extern int for_node;
+extern int noop_node;
 extern int WORD_SIZE;
 
 extern char** node_type_str;
@@ -311,7 +313,7 @@ void generate_expr_internal(int expr, int lvalue) {
     printf("sub dword ptr [eax], 1\n");
     printf("mov eax, dword ptr [eax]\n");
     printf("add eax, 1\n");
-  } else if (t == var_decl_node) {
+  } else if (t == var_decl_node || t == noop_node) {
     // do nothing
   } else {
     check(0, "unknown expr node type");
@@ -389,6 +391,28 @@ void generate_stmt(int stmt) {
 
     break_label = old_break_label;
     continue_label = old_continue_label;
+  } else if (t == for_node) {
+    int forloop_label = new_temp_label();
+    int endfor_label = new_temp_label();
+    int old_continue_label = continue_label;
+    continue_label = new_temp_label();
+    int old_break_label = break_label;
+    break_label = endfor_label;
+    generate_stmt(node_child[stmt][0]);
+    printf("_%d:\n", forloop_label);
+    if (node_type[node_child[stmt][1]] != noop_node) {
+      generate_expr(node_child[stmt][1]);
+      printf("cmp eax, 0\n");
+      printf("je _%d\n", endfor_label);
+    }
+    generate_stmts(node_child[stmt][3]);
+    printf("_%d:\n", continue_label);
+    generate_expr(node_child[stmt][2]);
+    printf("jmp _%d\n", forloop_label);
+    printf("_%d:\n", endfor_label);
+
+    break_label = old_break_label;
+    continue_label = old_continue_label;
   } else if (t == return_node) {
     if (node_child_num[stmt] == 1) {
       generate_expr(node_child[stmt][0]);
@@ -403,6 +427,8 @@ void generate_stmt(int stmt) {
     check(index >= 0, "local var not found");
     generate_expr(node_child[stmt][1]);
     printf("mov dword ptr [ebp-%d], eax\n", (1 + index) * WORD_SIZE);
+  } else if (t == noop_node) {
+    // do nothing
   } else {
     generate_expr(stmt);
   }

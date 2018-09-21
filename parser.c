@@ -61,7 +61,9 @@ int dec_prefix_node = 37;
 int inc_suffix_node = 38;
 int dec_suffix_node = 39;
 int do_while_node = 40;
-int node_type_num = 41;
+int for_node = 41;
+int noop_node = 42;
+int node_type_num = 43;
 
 char** node_type_str;
 int* node_type;
@@ -126,6 +128,8 @@ void init_parser() {
   node_type_str[inc_suffix_node] = "inc_suffix";
   node_type_str[dec_suffix_node] = "dec_suffix";
   node_type_str[do_while_node] = "do_while";
+  node_type_str[for_node] = "for";
+  node_type_str[noop_node] = "noop";
 }
 
 int new_node(int type) {
@@ -164,13 +168,17 @@ void skip_comment_tokens() {
   }
 }
 
+char* peek_token() {
+  return token[next_token_idx];
+}
+
 void inc_next_token_idx() {
   next_token_idx++;
   skip_comment_tokens();
 }
 
 int matche_token(char* s) {
-  if (!strcmp(s, token[next_token_idx])) {
+  if (!strcmp(s, peek_token())) {
     inc_next_token_idx();
     return 1;
   }
@@ -182,7 +190,7 @@ void check_and_ignore_token(char* s) {
 }
 
 void ignore_type() {
-  check(is_base_type(token[next_token_idx]), "unknown type\n");
+  check(is_base_type(peek_token()), "unknown type\n");
   inc_next_token_idx();
   while (matche_token("*")) { }
 }
@@ -206,7 +214,7 @@ int parse_expr();
 int parse_object() {
   int res;
   if (token_type[next_token_idx] == symbol_token) {
-    res = new_symbol_node(token[next_token_idx]);
+    res = new_symbol_node(peek_token());
     inc_next_token_idx();
   } else if (matche_token("(")) {
     res = parse_expr();
@@ -244,7 +252,7 @@ int parse_expr0() {
   if (matche_token("-")) {
     if (token_type[next_token_idx] == int_token) {
       // -1
-      char* num = token[next_token_idx];
+      char* num = peek_token();
       char* negative = malloc(strlen(num) + 2);
       negative[0] = 0;
       strcat(negative, "-");
@@ -262,7 +270,7 @@ int parse_expr0() {
   int type = get_primitive_node_type();
   if (type >= 0) {
     res = new_node(type);
-    node_payload[res] = token[next_token_idx];
+    node_payload[res] = peek_token();
     inc_next_token_idx();
     return res;
   }
@@ -370,7 +378,7 @@ int parse_expr3() {
 
 int parse_expr4() {
   int expr = parse_expr3();
-  if (!strcmp("&&", token[next_token_idx])) {
+  if (!strcmp("&&", peek_token())) {
     int res = new_node(and_node);
     append_child(res, expr);
     while (matche_token("&&")) {
@@ -383,7 +391,7 @@ int parse_expr4() {
 
 int parse_expr5() {
   int expr = parse_expr4();
-  if (!strcmp("||", token[next_token_idx])) {
+  if (!strcmp("||", peek_token())) {
     int res = new_node(or_node);
     append_child(res, expr);
     while (matche_token("||")) {
@@ -420,7 +428,7 @@ int parse_if() {
   check_and_ignore_token(")");
   append_child(res, parse_block());
   if (matche_token("else")) {
-    if (!strcmp(token[next_token_idx], "if")) {
+    if (!strcmp(peek_token(), "if")) {
       append_child(res, parse_stmt());
     } else {
       append_child(res, parse_block());
@@ -449,6 +457,34 @@ int parse_do_while() {
   return res;
 }
 
+int parse_decl();
+
+int parse_stmt();
+
+int noop_expr() {
+  return new_node(noop_node);
+}
+
+int parse_for() {
+  int res = new_node(for_node);
+  check_and_ignore_token("(");
+  append_child(res, parse_stmt());
+  if (!strcmp(peek_token(), ";")) {
+    append_child(res, noop_expr());
+  } else {
+    append_child(res, parse_expr());
+  }
+  check_and_ignore_token(";");
+  if (!strcmp(peek_token(), ")")) {
+    append_child(res, noop_expr());
+  } else {
+    append_child(res, parse_expr());
+  }
+  check_and_ignore_token(")");
+  append_child(res, parse_block());
+  return res;
+}
+
 int parse_return() {
   int res = new_node(return_node);
   if (!matche_token(";")) {
@@ -458,8 +494,6 @@ int parse_return() {
   return res;
 }
 
-int parse_decl();
-
 int parse_stmt() {
   if (matche_token("if")) {
     return parse_if();
@@ -467,6 +501,8 @@ int parse_stmt() {
     return parse_while();
   } else if (matche_token("do")) {
     return parse_do_while();
+  } else if (matche_token("for")) {
+    return parse_for();
   } else if (matche_token("return")) {
     return parse_return();
   } else if (matche_token("break")) {
@@ -477,11 +513,13 @@ int parse_stmt() {
     int res = new_node(continue_node);
     check_and_ignore_token(";");
     return res;
-  } else if (is_base_type(token[next_token_idx])) {
+  } else if (is_base_type(peek_token())) {
     // If expression starts with a type, then parse as declaration.
     // parse_decl() handle function declaration as well, 
     // though only variable declaration is allowed
     return parse_decl();
+  } else if (matche_token(";")) {
+    return noop_expr();
   }
   int res = parse_expr();
   check_and_ignore_token(";");
@@ -504,7 +542,7 @@ int parse_params() {
   node_type[params] = params_node;
   while (!matche_token(")")) {
     ignore_type();
-    char* param_name = token[next_token_idx];
+    char* param_name = peek_token();
     inc_next_token_idx();
     append_child(params, new_symbol_node(param_name));
     matche_token(","); // Won't match for the last param.
@@ -519,11 +557,11 @@ int parse_decl() {
   }
   ignore_type();
   int res;
-  char* name = token[next_token_idx];
+  char* name = peek_token();
   inc_next_token_idx();
-  if (!strcmp(token[next_token_idx], "(")) {
+  if (!strcmp(peek_token(), "(")) {
     int params = parse_params();
-    if (!strcmp(token[next_token_idx], "{")) {
+    if (!strcmp(peek_token(), "{")) {
       res = new_node(function_impl_node);
       append_child(res, new_symbol_node(name));
       append_child(res, params);
@@ -537,7 +575,7 @@ int parse_decl() {
   } else {
     if (extern_decl) {
       res = new_node(extern_var_decl_node);
-    } else if (!strcmp(token[next_token_idx], "=")) {
+    } else if (!strcmp(peek_token(), "=")) {
       res = new_node(var_init_node);
     } else {
       res = new_node(var_decl_node);
