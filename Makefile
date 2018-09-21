@@ -24,7 +24,7 @@ parser: base.s parser.s parser_main.s tokenizer.s
 	gcc $(FLAG) -m32 $^ -o $@
 
 coverage:
-	gcc -fno-builtin -coverage -O0 -m32 base.c tokenizer.c parser.c codegen_x86.c ranc_main.c -o ranc
+	gcc -fno-builtin -coverage -O0 -std=gnu99 -m32 base.c tokenizer.c parser.c codegen_x86.c ranc_main.c -o ranc
 	./run_tests
 	gcov base.c tokenizer.c parser.c codegen_x86.c ranc_main.c
 
