@@ -163,9 +163,7 @@ void read_single_token() {
     eat_char();
     if (peek_char() == '/') {
       eat_char();
-      while (peek_char() != EOF && peek_char() != '\n') {
-        ignore_char();
-      }
+      ignore_line();
       buffer_token_type = comment_token;
     } else if (peek_char() == '*') {
       eat_char();

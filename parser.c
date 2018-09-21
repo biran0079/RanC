@@ -214,8 +214,7 @@ int parse_object() {
   } else {
     check(0, "failed to parse object\n");
   }
-  int done = 0;
-  while (!done) {
+  while (1) {
     if (matche_token("[")) {
       int arr_expr = res;
       int idx_expr = parse_expr();
@@ -234,7 +233,7 @@ int parse_object() {
       append_child(res, func);
       append_child(res, args);
     } else {
-      done = 1;
+      break;
     }
   }
   return res;
@@ -291,8 +290,8 @@ int parse_expr0() {
 
 int parse_expr1() {
   int res = parse_expr0();
-  int op = 0;
-  while (op >= 0) {
+  while (1) {
+    int op;
     if (matche_token("*")) {
       op = mul_node;
     } else if (matche_token("/")) {
@@ -300,37 +299,33 @@ int parse_expr1() {
     } else if (matche_token("%")) {
       op = mod_node;
     } else {
-      op = -1; 
+      break;
     }
-    if (op >= 0) {
-      int left = res;
-      res = new_node(op);
-      // * % / are left associative
-      append_child(res, left);
-      append_child(res, parse_expr0());
-    }
+    int left = res;
+    res = new_node(op);
+    // * % / are left associative
+    append_child(res, left);
+    append_child(res, parse_expr0());
   }
   return res;
 }
 
 int parse_expr2() {
   int res = parse_expr1();
-  int op = 0;
-  while (op >= 0) {
+  while (1) {
+    int op;
     if (matche_token("+")) {
       op = add_node;
     } else if (matche_token("-")) {
       op = sub_node;
     } else {
-      op = -1;
+      break;
     }
-    if (op >= 0) {
-      int left = res;
-      res = new_node(op);
-      // + - are left associative
-      append_child(res, left);
-      append_child(res, parse_expr1());
-    }
+    int left = res;
+    res = new_node(op);
+    // + - are left associative
+    append_child(res, left);
+    append_child(res, parse_expr1());
   }
   return res;
 }
