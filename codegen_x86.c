@@ -107,12 +107,10 @@ int lookup_local_var(char* s) {
   if (!in_function) {
     return -1;
   }
-  int i = 0;
-  while (i < local_var_num) {
+  for (int i = 0; i < local_var_num; i++) {
     if (!strcmp(s, local_var[i])) {
       return i;
     }
-    i++;
   }
   return -1;
 }
@@ -121,23 +119,19 @@ int lookup_param(char* s) {
   if (!in_function) {
     return -1;
   }
-  int i = 0;
-  while (i < node_child_num[function_params]) {
+  for (int i = 0; i < node_child_num[function_params]; i++) {
     if (!strcmp(s, get_symbol(node_child[function_params][i]))) {
       return i;
     }
-    i++;
   }
   return -1;
 }
 
 // search for all var_decl_node and var_init_node in subtree
 void register_local_vars(int root) {
-  int i = 0;
-  while (i < node_child_num[root]) {
+  for (int i = 0; i < node_child_num[root]; i++) {
     int cur = node_child[root][i];
     int t = node_type[cur];
-    i++;
     if (t == var_decl_node || t == var_init_node) {
       register_local_var(get_symbol(node_child[cur][0]));
     } else {
@@ -167,7 +161,6 @@ void generate_expr(int expr);
 
 void generate_expr_internal(int expr, int lvalue) {
   int t = node_type[expr];
-  int i;
   int end_label;
   if (t == assignment_node) {
     generate_expr_internal(node_child[expr][0], 1);
@@ -177,22 +170,18 @@ void generate_expr_internal(int expr, int lvalue) {
     printf("mov dword ptr [ebx], eax\n");
   } else if (t == or_node) {
     end_label = new_temp_label();
-    i = 0;
-    while (i < node_child_num[expr]) {
+    for (int i = 0; i < node_child_num[expr]; i++) {
       generate_expr(node_child[expr][i]);
       printf("cmp eax, 0\n");
       printf("jnz _%d\n", end_label);
-      i++;
     }
     printf("_%d:\n", end_label);
   } else if (t == and_node) {
     end_label = new_temp_label();
-    i = 0;
-    while (i < node_child_num[expr]) {
+    for (int i = 0; i < node_child_num[expr]; i++) {
       generate_expr(node_child[expr][i]);
       printf("cmp eax, 0\n");
       printf("jz _%d\n", end_label);
-      i++;
     }
     printf("_%d:\n", end_label);
   } else if (t == not_node) {
@@ -283,11 +272,9 @@ void generate_expr_internal(int expr, int lvalue) {
     check(node_type[fun] == symbol_node, "function has to be a symbol");
     char* fname = get_symbol(fun);
     int args = node_child[expr][1];
-    int i = node_child_num[args] - 1;
-    while (i >= 0) {
+    for (int i = node_child_num[args] - 1; i >= 0; i--) {
       generate_expr(node_child[args][i]);
       printf("push eax\n");
-      i--;
     }
     printf("call %s\n", fname);
     printf("add esp, %d\n", node_child_num[args] * WORD_SIZE);
@@ -436,10 +423,8 @@ void generate_stmt(int stmt) {
 
 void generate_stmts(int stmts) {
   check(node_type[stmts] == stmts_node, "generate_stmts");
-  int i = 0;
-  while (i < node_child_num[stmts]) {
+  for (int i = 0; i < node_child_num[stmts]; i++) {
     generate_stmt(node_child[stmts][i]);
-    i++;
   }
 }
 
@@ -448,8 +433,7 @@ void generate_code(int root) {
   printf(".intel_syntax noprefix\n");
   printf(".section .data\n");
   // declare all global variables.
-  int i = 0;
-  while (i < node_child_num[root]) {
+  for (int i = 0; i < node_child_num[root]; i++) {
     int cur = node_child[root][i];
     char* name = get_symbol(node_child[cur][0]);
     // expose function names and global var names
@@ -464,12 +448,10 @@ void generate_code(int root) {
       // declare uninitialized global var
       printf("%s: .long 0\n", name);
     }
-    i++;
   }
   printf(".section .text\n");
   // generate code for functions
-  i = 0;
-  while (i < node_child_num[root]) {
+  for (int i = 0; i < node_child_num[root]; i++) {
     int cur = node_child[root][i];
     if (node_type[cur] == function_impl_node) {
       char* name = get_symbol(node_child[cur][0]);
@@ -498,7 +480,6 @@ void generate_code(int root) {
 
       in_function = 0;
     }
-    i++;
   }
 }
 

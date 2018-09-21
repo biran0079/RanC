@@ -615,11 +615,9 @@ void print_ast_internal(int root, int indent) {
   if (node_payload[root]) {
     printf(" %s", node_payload[root]);
   }
-  int i = 0;
-  while (i < node_child_num[root]) {
+  for (int i = 0; i < node_child_num[root]; i++) {
     printf("\n");
     print_ast_internal(node_child[root][i], indent + 2);
-    i++;
   }
   printf(")");
 }
