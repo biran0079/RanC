@@ -52,7 +52,8 @@
 #define sub_eq_node  44
 #define mul_eq_node  45
 #define div_eq_node  46
-#define node_type_num  47
+#define ternary_condition_node  47
+#define node_type_num  48
 
 
 extern char** node_type_str;

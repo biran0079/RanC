@@ -270,6 +270,17 @@ void generate_expr_internal(int expr, int lvalue) {
     printf("sub dword ptr [eax], 1\n");
     printf("mov eax, dword ptr [eax]\n");
     printf("add eax, 1\n");
+  } else if (t == ternary_condition_node) {
+    int snd_label = new_temp_label();
+    int end_label = new_temp_label();
+    generate_expr(node_child[expr][0]);
+    printf("cmp eax, 0\n");
+    printf("je _%d\n", snd_label);
+    generate_expr(node_child[expr][1]);
+    printf("jmp _%d\n", end_label);
+    printf("_%d:\n", snd_label);
+    generate_expr(node_child[expr][2]);
+    printf("_%d:\n", end_label);
   } else if (t == var_decl_node || t == noop_node) {
     // do nothing
   } else {

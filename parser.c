@@ -66,6 +66,7 @@ void init_parser() {
   node_type_str[sub_eq_node] = "-=";
   node_type_str[mul_eq_node] = "*=";
   node_type_str[div_eq_node] = "/=";
+  node_type_str[ternary_condition_node] = "?:";
 }
 
 int new_node(int type) {
@@ -339,39 +340,52 @@ int parse_expr5() {
 }
 
 int parse_expr6() {
-  int expr = parse_expr5();
+  int exp = parse_expr5();
+  if (matche_token("?")) {
+    int res = new_node(ternary_condition_node);
+    append_child(res, exp);
+    append_child(res, parse_expr6());
+    check_and_ignore_token(":");
+    append_child(res, parse_expr6());
+    return res;
+  }
+  return exp;
+}
+
+int parse_expr7() {
+  int expr = parse_expr6();
   if (matche_token("=")) {
     int res = new_node(assignment_node);
     append_child(res, expr);
     // right associative
-    append_child(res, parse_expr6());
+    append_child(res, parse_expr7());
     return res;
   } else if (matche_token("+=")) {
     int res = new_node(add_eq_node);
     append_child(res, expr);
-    append_child(res, parse_expr6());
+    append_child(res, parse_expr7());
     return res;
   } else if (matche_token("-=")) {
     int res = new_node(sub_eq_node);
     append_child(res, expr);
-    append_child(res, parse_expr6());
+    append_child(res, parse_expr7());
     return res;
   } else if (matche_token("*=")) {
     int res = new_node(mul_eq_node);
     append_child(res, expr);
-    append_child(res, parse_expr6());
+    append_child(res, parse_expr7());
     return res;
   } else if (matche_token("/=")) {
     int res = new_node(div_eq_node);
     append_child(res, expr);
-    append_child(res, parse_expr6());
+    append_child(res, parse_expr7());
     return res;
   }
   return expr;
 }
 
 int parse_expr() {
-  return parse_expr6();
+  return parse_expr7();
 }
 
 int parse_stmt();
