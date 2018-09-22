@@ -1,14 +1,14 @@
 FLAG=-g
 
 %.s: %.c ranc
-	./ranc < $< > $@
+	./compile.sh $< > $@
 
 ranc: base.c tokenizer.c parser.c ranc_main.c codegen_x86.c
-	./ranc < base.c > base.s 
-	./ranc < tokenizer.c > tokenizer.s 
-	./ranc < parser.c > parser.s 
-	./ranc < codegen_x86.c > codegen_x86.s
-	./ranc < ranc_main.c > ranc_main.s 
+	gcc -E base.c | ./ranc > base.s 
+	./compile.sh tokenizer.c > tokenizer.s 
+	./compile.sh parser.c > parser.s 
+	./compile.sh codegen_x86.c > codegen_x86.s
+	./compile.sh ranc_main.c > ranc_main.s 
 	gcc $(FLAG) -m32 base.s tokenizer.s parser.s codegen_x86.s ranc_main.s -o $@
 
 clean:
