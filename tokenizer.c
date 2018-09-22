@@ -79,12 +79,6 @@ void ignore_line() {
   ignore_char();
 }
 
-void ignore_includes() {
-  while (peek_char() == '#') {
-    ignore_line();
-  }
-}
-
 int is_space(char c) {
   return c == ' ' || (c == '\t' || c == '\n');
 }
@@ -110,8 +104,15 @@ void check_and_eat_char(char c) {
 
 void read_single_token() {
   buffer_len = 0;
-  ignore_includes();
-  ignore_spaces();
+  while (1) {
+    if (peek_char() == '#') {
+      ignore_line();
+    } else if (is_space(peek_char())) {
+      ignore_char();
+    } else {
+      break;
+    }
+  }
   if (is_letter(peek_char())) {
     while (is_letter(peek_char()) 
         || is_digit(peek_char()) 
