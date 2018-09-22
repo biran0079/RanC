@@ -67,6 +67,8 @@ void init_parser() {
   node_type_str[mul_eq_node] = "*=";
   node_type_str[div_eq_node] = "/=";
   node_type_str[ternary_condition_node] = "?:";
+  node_type_str[enum_node] = "enum";
+  node_type_str[enum_value_node] = "enum_value";
 }
 
 int new_node(int type) {
@@ -96,7 +98,7 @@ void append_child(int par, int child) {
 }
 
 int is_base_type(char* s) {
-  return !strcmp(s, "char") || !strcmp(s, "int") || !strcmp(s, "void");
+  return !strcmp(s, "char") || !strcmp(s, "int") || !strcmp(s, "void") || !strcmp(s, "enum");
 }
 
 void skip_comment_tokens() {
@@ -107,6 +109,10 @@ void skip_comment_tokens() {
 
 char* peek_token() {
   return token[next_token_idx];
+}
+
+int peek_token_type() {
+  return token_type[next_token_idx];
 }
 
 void inc_next_token_idx() {
@@ -128,7 +134,8 @@ void check_and_ignore_token(char* s) {
 
 void ignore_type() {
   check(is_base_type(peek_token()), "unknown type\n");
-  inc_next_token_idx();
+  matche_token("enum"); // skip enum keyword if any
+  inc_next_token_idx(); // skip type/enum name
   while (matche_token("*")) { }
 }
 
@@ -525,7 +532,30 @@ int parse_decl() {
   if (matche_token("extern")) {
     extern_decl = 1;
   }
-  ignore_type();
+  if (matche_token("enum")) {
+    int res = new_node(enum_node);
+    append_child(res, new_symbol_node(peek_token()));
+    inc_next_token_idx();
+    check_and_ignore_token("{");
+    while (!matche_token("}")) {
+      int value = new_node(enum_value_node);
+      append_child(res, value);
+      append_child(value, new_symbol_node(peek_token()));
+      inc_next_token_idx();
+      if (matche_token("=")) {
+        check(peek_token_type() == int_token, "int token expected for enum initialization");
+        int int_value = new_node(int_node);
+        node_payload[next_token_idx] = peek_token();
+        append_child(value, int_value);
+        inc_next_token_idx();
+      }
+      matche_token(",");
+    }
+    check_and_ignore_token(";");
+    return res;
+  } else {
+    ignore_type();
+  }
   int res;
   char* name = peek_token();
   inc_next_token_idx();

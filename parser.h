@@ -53,7 +53,9 @@
 #define mul_eq_node  45
 #define div_eq_node  46
 #define ternary_condition_node  47
-#define node_type_num  48
+#define enum_node  48
+#define enum_value_node  49
+#define node_type_num  50
 
 
 extern char** node_type_str;
