@@ -49,6 +49,10 @@ extern int dec_suffix_node;
 extern int do_while_node;
 extern int for_node;
 extern int noop_node;
+extern int add_eq_node;
+extern int sub_eq_node;
+extern int mul_eq_node;
+extern int div_eq_node;
 extern int WORD_SIZE;
 
 extern char** node_type_str;
@@ -168,6 +172,38 @@ void generate_expr_internal(int expr, int lvalue) {
     generate_expr(node_child[expr][1]);
     printf("pop ebx\n");
     printf("mov dword ptr [ebx], eax\n");
+  } else if (t == add_eq_node) {
+    generate_expr_internal(node_child[expr][0], 1);
+    printf("push eax\n");
+    generate_expr(node_child[expr][1]);
+    printf("pop ebx\n");
+    printf("add [ebx], eax\n");
+    printf("mov eax, [ebx]\n");
+  } else if (t == sub_eq_node) {
+    generate_expr_internal(node_child[expr][0], 1);
+    printf("push eax\n");
+    generate_expr(node_child[expr][1]);
+    printf("pop ebx\n");
+    printf("sub [ebx], eax\n");
+    printf("mov eax, [ebx]\n");
+  } else if (t == mul_eq_node) {
+    generate_expr_internal(node_child[expr][0], 1);
+    printf("push eax\n");
+    generate_expr(node_child[expr][1]);
+    printf("pop ebx\n");
+    printf("imul eax, dword ptr [ebx]\n");
+    printf("mov [ebx], eax\n");
+  } else if (t == div_eq_node) {
+    generate_expr_internal(node_child[expr][0], 1);
+    printf("push eax\n");
+    generate_expr(node_child[expr][1]);
+    printf("mov ebx, eax\n");
+    printf("mov eax, dword ptr [esp]\n");
+    printf("mov eax, [eax]\n");
+    printf("cdq\n");
+    printf("idiv ebx\n");
+    printf("pop ebx\n");
+    printf("mov [ebx], eax\n");
   } else if (t == or_node) {
     end_label = new_temp_label();
     for (int i = 0; i < node_child_num[expr]; i++) {

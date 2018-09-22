@@ -183,6 +183,9 @@ void read_single_token() {
         ignore_char();
       }
       buffer_token_type = comment_token;
+    } else if (peek_char() == '=') {
+      eat_char();
+      buffer_token_type = operator_token;
     } else {
       buffer_token_type = operator_token;
     }
@@ -190,6 +193,8 @@ void read_single_token() {
     char c = peek_char();
     eat_char();
     if ((c == '+' || c == '-') && peek_char() == c) {
+      eat_char();
+    } else if ((c == '+' || c == '-' || c == '*') && peek_char() == '=') {
       eat_char();
     }
     buffer_token_type = operator_token;
