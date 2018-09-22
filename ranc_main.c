@@ -1,9 +1,4 @@
-void init_tokenizer();
-void tokenize();
-void init_parser();
-int parse();
-void init_codegen();
-void generate_code();
+#include "codegen_x86.h"
 
 int main() {
   init_tokenizer();

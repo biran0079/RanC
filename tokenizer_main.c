@@ -1,11 +1,4 @@
-extern int* token_type;
-extern char** token;
-extern int token_num;
-extern char** token_type_str;
-
-void printf();
-void tokenize();
-void init_tokenizer();
+#include "tokenizer.h"
 
 int main() {
   init_tokenizer();

@@ -1,73 +1,5 @@
-void* malloc();
-void* realloc();
-void check();
-int strcmp();
-int strlen();
-void strcat();
-int printf();
-void free();
-
-extern int* token_type;
-extern char** token;
-extern int token_num;
-extern int int_token;
-extern int string_token;
-extern int char_token;
-extern int symbol_token;
-extern int operator_token;
-extern int comment_token;
-extern int other_token;
-extern int eof_token;
-extern int WORD_SIZE;
-
-int prog_node = 0;
-int var_decl_node = 1;
-int function_decl_node = 2;
-int function_impl_node = 3;
-int params_node = 4;
-int args_node = 5;
-int stmts_node = 6;
-int if_node = 7;
-int while_do_node = 8;
-int assignment_node = 9;
-int or_node = 10;
-int and_node = 11;
-int add_node = 12;
-int sub_node = 13;
-int mul_node = 14;
-int div_node = 15;
-int mod_node = 16;
-int negative_node = 17;
-int int_node = 18;
-int string_node = 19;
-int char_node = 20;
-int symbol_node = 21;
-int access_node = 22;
-int call_node = 23;
-int eq_node = 24;
-int lt_node = 25;
-int le_node = 26;
-int gt_node = 27;
-int ge_node = 28;
-int return_node = 29;
-int not_node = 30;
-int ne_node = 31;
-int extern_var_decl_node = 32;
-int var_init_node = 33;
-int break_node = 34;
-int continue_node = 35;
-int inc_prefix_node = 36;
-int dec_prefix_node = 37;
-int inc_suffix_node = 38;
-int dec_suffix_node = 39;
-int do_while_node = 40;
-int for_node = 41;
-int noop_node = 42;
-int add_eq_node = 43;
-int sub_eq_node = 44;
-int mul_eq_node = 45;
-int div_eq_node = 46;
-int node_type_num = 47;
+#include "tokenizer.h"
+#include "parser.h"
 
 char** node_type_str;
 int* node_type;
@@ -78,10 +10,6 @@ char** node_payload;
 int node_num = 0;
 
 int next_token_idx;
-
-extern int WORD_SIZE;
-
-int MAX_NODE_NUM = 10000;
 
 void init_parser() {
   node_type = malloc(MAX_NODE_NUM * WORD_SIZE);

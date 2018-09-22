@@ -1,20 +1,6 @@
-char getchar();
-int printf();
-void exit();
-char* strdup();
-void* malloc();
-int strchr();
-void check();
-
-extern int WORD_SIZE;
-
-int MAX_TOKEN_NUM = 100000;
-int MAX_TOKEN_LEN = 1023;
+#include "tokenizer.h"
 
 char cur_char = 0;
-
-int EOF = -1;
-
 int* token_type;
 char** token;
 int token_num = 0;
@@ -22,16 +8,6 @@ int token_num = 0;
 char* buffer_token;
 int buffer_len = 0;
 int buffer_token_type;
-
-int int_token = 0;
-int string_token = 1;
-int char_token  = 2;
-int symbol_token = 3;
-int operator_token = 4;
-int comment_token = 5;
-int other_token = 6;
-int eof_token = 7;
-int token_type_num = 8;
 
 char** token_type_str;
 
@@ -91,12 +67,6 @@ int is_letter(char c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-void ignore_spaces() {
-  while (is_space(peek_char())) { 
-    ignore_char();
-  } 
-}
-
 void check_and_eat_char(char c) {
   check(peek_char() == c, "check_and_eat_char");
   eat_char();
@@ -106,8 +76,10 @@ void read_single_token() {
   buffer_len = 0;
   while (1) {
     if (peek_char() == '#') {
+      // ignore text after #
       ignore_line();
     } else if (is_space(peek_char())) {
+      // ignore spaces
       ignore_char();
     } else {
       break;

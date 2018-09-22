@@ -1,74 +1,8 @@
-void tokenize();
-int parse();
-void init_tokenizer();
-void init_parser();
-int printf();
-int strcmp();
-void* malloc();
+#include "codegen_x86.h"
 
-extern int prog_node;
-extern int var_decl_node;
-extern int function_decl_node;
-extern int function_impl_node;
-extern int params_node;
-extern int args_node;
-extern int stmts_node;
-extern int if_node;
-extern int while_do_node;
-extern int assignment_node;
-extern int or_node;
-extern int and_node;
-extern int add_node;
-extern int sub_node;
-extern int mul_node;
-extern int div_node;
-extern int mod_node;
-extern int negative_node;
-extern int int_node;
-extern int string_node;
-extern int char_node;
-extern int symbol_node;
-extern int access_node;
-extern int call_node;
-extern int eq_node;
-extern int lt_node;
-extern int le_node;
-extern int gt_node;
-extern int ge_node;
-extern int return_node;
-extern int not_node;
-extern int ne_node;
-extern int extern_var_decl_node;
-extern int var_init_node;
-extern int break_node;
-extern int continue_node;
-extern int inc_prefix_node;
-extern int inc_suffix_node;
-extern int dec_prefix_node;
-extern int dec_suffix_node;
-extern int do_while_node;
-extern int for_node;
-extern int noop_node;
-extern int add_eq_node;
-extern int sub_eq_node;
-extern int mul_eq_node;
-extern int div_eq_node;
-extern int WORD_SIZE;
-
-extern char** node_type_str;
-extern int* node_type;
-extern int** node_child;
-extern int* node_child_num;
-extern int* node_child_cap;
-extern char** node_payload;
-
-int MAX_LOCAL_VARS = 100;
 char** local_var;
 int local_var_num;
 int in_function;
-
-void check();
-int atoi();
 
 // Params node for current function.
 // Used for param look up when generating code for function body.
