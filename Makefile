@@ -1,6 +1,6 @@
 FLAG=-g -m32
 
-CC=gcc -m32 -S
+CC=./compile.sh
 
 %.s: %.c ranc
 	$(CC) $< > $@

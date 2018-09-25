@@ -7,15 +7,17 @@
 #define MAX_TOKEN_LEN 1023
 #define EOF -1
 
-#define int_token  0
-#define string_token  1
-#define char_token   2
-#define symbol_token  3
-#define operator_token  4
-#define comment_token  5
-#define other_token  6
-#define eof_token  7
-#define token_type_num  8
+enum TokenType {
+  int_token,
+  string_token,
+  char_token ,
+  symbol_token,
+  operator_token,
+  comment_token,
+  other_token,
+  eof_token,
+  token_type_num,
+};
 
 void tokenize();
 void init_tokenizer();

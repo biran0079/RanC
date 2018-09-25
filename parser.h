@@ -5,58 +5,60 @@
 
 #define MAX_NODE_NUM 10000
 
-#define prog_node  0
-#define var_decl_node  1
-#define function_decl_node  2
-#define function_impl_node  3
-#define params_node  4
-#define args_node  5
-#define stmts_node  6
-#define if_node  7
-#define while_do_node  8
-#define assignment_node  9
-#define or_node  10
-#define and_node  11
-#define add_node  12
-#define sub_node  13
-#define mul_node  14
-#define div_node  15
-#define mod_node  16
-#define negative_node  17
-#define int_node  18
-#define string_node  19
-#define char_node  20
-#define symbol_node  21
-#define access_node  22
-#define call_node  23
-#define eq_node  24
-#define lt_node  25
-#define le_node  26
-#define gt_node  27
-#define ge_node  28
-#define return_node  29
-#define not_node  30
-#define ne_node  31
-#define extern_var_decl_node  32
-#define var_init_node  33
-#define break_node  34
-#define continue_node  35
-#define inc_prefix_node  36
-#define dec_prefix_node  37
-#define inc_suffix_node  38
-#define dec_suffix_node  39
-#define do_while_node  40
-#define for_node  41
-#define noop_node  42
-#define add_eq_node  43
-#define sub_eq_node  44
-#define mul_eq_node  45
-#define div_eq_node  46
-#define ternary_condition_node  47
-#define enum_node  48
-#define enum_value_node  49
-#define node_type_num  50
+enum NodeType {
+  prog_node,
+  var_decl_node,
+  function_decl_node,
+  function_impl_node,
+  params_node,
+  args_node,
+  stmts_node,
+  if_node,
+  while_do_node,
+  assignment_node,
+  or_node,
+  and_node,
+  add_node,
+  sub_node,
+  mul_node,
+  div_node,
+  mod_node,
+  negative_node,
+  int_node,
+  string_node,
+  char_node,
+  symbol_node,
+  access_node,
+  call_node,
+  eq_node,
+  lt_node,
+  le_node,
+  gt_node,
+  ge_node,
+  return_node,
+  not_node,
+  ne_node,
+  extern_var_decl_node,
+  var_init_node,
+  break_node,
+  continue_node,
+  inc_prefix_node,
+  dec_prefix_node,
+  inc_suffix_node,
+  dec_suffix_node,
+  do_while_node,
+  for_node,
+  noop_node,
+  add_eq_node,
+  sub_eq_node,
+  mul_eq_node,
+  div_eq_node,
+  ternary_condition_node,
+  enum_node,
+  enum_value_node,
 
+  node_type_num,
+};
 
 extern char** node_type_str;
 extern int* node_type;
