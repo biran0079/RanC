@@ -2,6 +2,10 @@
 
 char** local_var;
 int local_var_num;
+char** enum_key;
+int* enum_value;
+int enum_num;
+
 int in_function;
 
 // Params node for current function.
@@ -34,6 +38,21 @@ int get_int(int cur) {
 char* get_string(int cur) {
   check(node_type[cur] == string_node, "get_string");
   return node_payload[cur];
+}
+
+int register_enum(char* s, int n) {
+  int i = enum_num++;
+  enum_key[i] = s;
+  enum_value[i] = n;
+}
+
+int lookup_enum_idx(char* s) {
+  for (int i = 0; i < enum_num; i++) {
+    if (!strcmp(s, enum_key[i])) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 void register_local_var(char* s) {
@@ -211,6 +230,7 @@ void generate_expr_internal(int expr, int lvalue) {
     char* name = get_symbol(expr);
     int local_index = lookup_local_var(name);
     int param_index = lookup_param(name);
+    int enum_index = lookup_enum_idx(name);
     char* op;
     if (lvalue) {
       op = "lea";
@@ -221,6 +241,9 @@ void generate_expr_internal(int expr, int lvalue) {
       printf("%s eax, [ebp-%d]\n", op, (1 + local_index) * WORD_SIZE);
     } else if (param_index >= 0) {
       printf("%s eax, [ebp+%d]\n", op, (2 + param_index) * WORD_SIZE);
+    } else if (enum_index >= 0) {
+      check(!lvalue, "enum cannot be lvalue\n");
+      printf("%s eax, %d\n", op, enum_value[enum_index]);
     } else {
       printf("%s eax, [%s]\n", op, name);
     }
@@ -460,6 +483,17 @@ void generate_code(int root) {
       printf("ret\n");
 
       in_function = 0;
+    } else if (node_type[cur] == enum_node) {
+      int value = 0;
+      // skip enum name
+      for (int j = 1; j < node_child_num[cur]; j++) {
+        int val_node = node_child[cur][j];
+        char* key = get_symbol(node_child[val_node][0]);
+        if (node_child_num[val_node] == 2) {
+          value = get_int(node_child[val_node][1]);
+        }
+        register_enum(key, value++);
+      }
     }
   }
 }
@@ -467,4 +501,7 @@ void generate_code(int root) {
 void init_codegen() {
   local_var = malloc(MAX_LOCAL_VARS * WORD_SIZE);
   local_var_num = 0;
+  enum_key = malloc(MAX_ENUM_VALUES * WORD_SIZE);
+  enum_value = malloc(MAX_ENUM_VALUES * WORD_SIZE);
+  enum_num = 0;
 }

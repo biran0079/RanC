@@ -545,7 +545,7 @@ int parse_decl() {
       if (matche_token("=")) {
         check(peek_token_type() == int_token, "int token expected for enum initialization");
         int int_value = new_node(int_node);
-        node_payload[next_token_idx] = peek_token();
+        node_payload[int_value] = peek_token();
         append_child(value, int_value);
         inc_next_token_idx();
       }

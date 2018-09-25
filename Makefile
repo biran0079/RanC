@@ -1,15 +1,17 @@
-FLAG=-g
+FLAG=-g -m32
+
+CC=gcc -m32 -S
 
 %.s: %.c ranc
-	./compile.sh $< > $@
+	$(CC) $< > $@
 
 ranc: base.c tokenizer.c parser.c ranc_main.c codegen_x86.c
-	gcc -E base.c | ./ranc > base.s 
-	./compile.sh tokenizer.c > tokenizer.s 
-	./compile.sh parser.c > parser.s 
-	./compile.sh codegen_x86.c > codegen_x86.s
-	./compile.sh ranc_main.c > ranc_main.s 
-	gcc $(FLAG) -m32 base.s tokenizer.s parser.s codegen_x86.s ranc_main.s -o $@
+	$(CC) base.c > base.s 
+	$(CC) tokenizer.c > tokenizer.s 
+	$(CC) parser.c > parser.s 
+	$(CC) codegen_x86.c > codegen_x86.s
+	$(CC) ranc_main.c > ranc_main.s 
+	gcc $(FLAG) base.s tokenizer.s parser.s codegen_x86.s ranc_main.s -o $@
 
 clean:
 	rm -f *.s *.gcno *.gcda *.gcov
@@ -18,10 +20,10 @@ test: ranc
 	./run_tests
 
 tokenizer: base.s tokenizer.s tokenizer_main.s
-	gcc $(FLAG) -m32 $^ -o $@
+	gcc $(FLAG) $^ -o $@
  
 parser: base.s parser.s parser_main.s tokenizer.s
-	gcc $(FLAG) -m32 $^ -o $@
+	gcc $(FLAG) $^ -o $@
 
 coverage:
 	gcc -fno-builtin -coverage -O0 -std=gnu99 -m32 base.c tokenizer.c parser.c codegen_x86.c ranc_main.c -o ranc
