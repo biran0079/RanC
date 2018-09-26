@@ -305,8 +305,6 @@ void generate_expr_internal(int expr, int lvalue) {
     printf("_%d:\n", snd_label);
     generate_expr(node_child[expr][2]);
     printf("_%d:\n", end_label);
-  } else if (t == var_decl_node || t == noop_node) {
-    // do nothing
   } else {
     check(0, "unknown expr node type");
   }
@@ -399,7 +397,7 @@ void generate_stmt(int stmt) {
     }
     generate_stmts(node_child[stmt][3]);
     printf("_%d:\n", continue_label);
-    generate_expr(node_child[stmt][2]);
+    generate_stmt(node_child[stmt][2]);
     printf("jmp _%d\n", forloop_label);
     printf("_%d:\n", endfor_label);
 
@@ -419,7 +417,7 @@ void generate_stmt(int stmt) {
     check(index >= 0, "local var not found");
     generate_expr(node_child[stmt][2]);
     printf("mov dword ptr [ebp-%d], eax\n", (1 + index) * WORD_SIZE);
-  } else if (t == noop_node) {
+  } else if (t == noop_node || t == var_decl_node) {
     // do nothing
   } else {
     generate_expr(stmt);
