@@ -244,9 +244,17 @@ void generate_expr_internal(int expr, int lvalue) {
     printf("pop ebx\n");
     printf("mov dword ptr [ebx], eax\n");
   } else if (t == add_eq_node) {
+    int type_node = get_expr_type_node(node_child[expr][0]);
+    int step = 1;
+    if (node_type[type_node] == ptr_type_node) {
+      step = size_of_type(node_child[type_node][0]);
+    }
     generate_expr_internal(node_child[expr][0], 1);
     printf("push eax\n");
     generate_expr(node_child[expr][1]);
+    if (step > 1) {
+      printf("imul eax, %d\n", step);
+    }
     printf("pop ebx\n");
     printf("add [ebx], eax\n");
     printf("mov eax, [ebx]\n");
@@ -305,9 +313,17 @@ void generate_expr_internal(int expr, int lvalue) {
     printf("mov eax, 0\n");
     printf("%s al\n", get_set_cmp_inst(t));
   } else if (t == add_node) {
+    int type_node = get_expr_type_node(node_child[expr][0]);
+    int step = 1;
+    if (node_type[type_node] == ptr_type_node) {
+      step = size_of_type(node_child[type_node][0]);
+    }
     generate_expr(node_child[expr][0]);
     printf("push eax\n");
     generate_expr(node_child[expr][1]);
+    if (step > 1) {
+      printf("imul eax, %d\n", step);
+    }
     printf("pop ebx\n");
     printf("add eax, ebx\n");
   } else if (t == sub_node) {
