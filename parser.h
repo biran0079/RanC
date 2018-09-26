@@ -56,6 +56,12 @@ enum NodeType {
   ternary_condition_node,
   enum_node,
   enum_value_node,
+  ptr_type_node,
+  int_type_node,
+  char_type_node,
+  void_type_node,
+  enum_type_node,
+  param_node,
 
   node_type_num,
 };

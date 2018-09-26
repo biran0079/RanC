@@ -69,6 +69,11 @@ void init_parser() {
   node_type_str[ternary_condition_node] = "?:";
   node_type_str[enum_node] = "enum";
   node_type_str[enum_value_node] = "enum_value";
+  node_type_str[ptr_type_node] = "ptr_type";
+  node_type_str[int_type_node] = "int_type";
+  node_type_str[char_type_node] = "char_type";
+  node_type_str[void_type_node] = "void_type";
+  node_type_str[param_node] = "param";
 }
 
 int new_node(int type) {
@@ -132,11 +137,27 @@ void check_and_ignore_token(char* s) {
   check(matche_token(s), "check_and_ignore_token failed\n");
 }
 
-void ignore_type() {
-  check(is_base_type(peek_token()), "unknown type\n");
-  matche_token("enum"); // skip enum keyword if any
-  inc_next_token_idx(); // skip type/enum name
-  while (matche_token("*")) { }
+int parse_type() {
+  int res;
+  if (matche_token("enum")) {
+    res = new_node(enum_type_node);
+    append_child(res, new_symbol_node(peek_token()));
+    inc_next_token_idx();
+  } else if (matche_token("int")) {
+    res = new_node(int_type_node);
+  } else if (matche_token("char")) {
+    res = new_node(char_type_node);
+  } else if (matche_token("void")) {
+    res = new_node(void_type_node);
+  } else {
+    check(0, "unknown type\n");
+  }
+  while (matche_token("*")) { 
+    int t = res;
+    res = new_node(ptr_type_node);
+    append_child(res, t);  
+  }
+  return res;
 }
 
 // Return node type for primitive token, or -1 if token is not primitive.
@@ -518,16 +539,18 @@ int parse_params() {
   int params = new_node(params_node);
   node_type[params] = params_node;
   while (!matche_token(")")) {
-    ignore_type();
-    char* param_name = peek_token();
+    int param = new_node(param_node);
+    append_child(params, param);
+    append_child(param, parse_type());
+    append_child(param, new_symbol_node(peek_token()));
     inc_next_token_idx();
-    append_child(params, new_symbol_node(param_name));
     matche_token(","); // Won't match for the last param.
   }
   return params;
 }
 
 int parse_decl() {
+  int type_node;
   int extern_decl = 0;
   if (matche_token("extern")) {
     extern_decl = 1;
@@ -554,7 +577,7 @@ int parse_decl() {
     check_and_ignore_token(";");
     return res;
   } else {
-    ignore_type();
+    type_node = parse_type();
   }
   int res;
   char* name = peek_token();
@@ -563,11 +586,13 @@ int parse_decl() {
     int params = parse_params();
     if (!strcmp(peek_token(), "{")) {
       res = new_node(function_impl_node);
+      append_child(res, type_node);
       append_child(res, new_symbol_node(name));
       append_child(res, params);
       append_child(res, parse_block());
     } else {
       res = new_node(function_decl_node);
+      append_child(res, type_node);
       append_child(res, new_symbol_node(name));
       append_child(res, params);
       check_and_ignore_token(";");
@@ -580,6 +605,7 @@ int parse_decl() {
     } else {
       res = new_node(var_decl_node);
     }
+    append_child(res, type_node);
     append_child(res, new_symbol_node(name));
     if (matche_token("=")) {
       append_child(res, parse_expr());

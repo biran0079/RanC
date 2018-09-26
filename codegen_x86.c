@@ -77,7 +77,8 @@ int lookup_param(char* s) {
     return -1;
   }
   for (int i = 0; i < node_child_num[function_params]; i++) {
-    if (!strcmp(s, get_symbol(node_child[function_params][i]))) {
+    int param_node = node_child[function_params][i];
+    if (!strcmp(s, get_symbol(node_child[param_node][1]))) {
       return i;
     }
   }
@@ -90,7 +91,7 @@ void register_local_vars(int root) {
     int cur = node_child[root][i];
     int t = node_type[cur];
     if (t == var_decl_node || t == var_init_node) {
-      register_local_var(get_symbol(node_child[cur][0]));
+      register_local_var(get_symbol(node_child[cur][1]));
     } else {
       register_local_vars(cur);
     }
@@ -414,9 +415,9 @@ void generate_stmt(int stmt) {
   } else if (t == continue_node) {
     printf("jmp _%d\n", continue_label);
   } else if (t == var_init_node) {
-    int index = lookup_local_var(get_symbol(node_child[stmt][0]));
+    int index = lookup_local_var(get_symbol(node_child[stmt][1]));
     check(index >= 0, "local var not found");
-    generate_expr(node_child[stmt][1]);
+    generate_expr(node_child[stmt][2]);
     printf("mov dword ptr [ebp-%d], eax\n", (1 + index) * WORD_SIZE);
   } else if (t == noop_node) {
     // do nothing
@@ -439,18 +440,25 @@ void generate_code(int root) {
   // declare all global variables.
   for (int i = 0; i < node_child_num[root]; i++) {
     int cur = node_child[root][i];
-    char* name = get_symbol(node_child[cur][0]);
-    // expose function names and global var names
-    printf(".globl %s\n", name);
-    if (node_type[cur] == var_init_node) {
-      // declare initialized global var
-      check(node_child_num[cur] == 2 && node_type[node_child[cur][1]] == int_node,
-          "only integer variable initialization is allowed\n");
-      int value = get_int(node_child[cur][1]);
-      printf("%s: .long %d\n", name, value);
-    } else if (node_type[cur] == var_decl_node) {
-      // declare uninitialized global var
-      printf("%s: .long 0\n", name);
+    if (node_type[cur] == function_impl_node
+        || node_type[cur] == function_decl_node
+        || node_type[cur] == var_init_node
+        || node_type[cur] == var_decl_node
+        || node_type[cur] == extern_var_decl_node) {
+      // index 0 is type
+      char* name = get_symbol(node_child[cur][1]);
+      // expose function names and global var names
+      printf(".globl %s\n", name);
+      if (node_type[cur] == var_init_node) {
+        // declare initialized global var
+        check(node_child_num[cur] == 3 && node_type[node_child[cur][2]] == int_node,
+            "only integer variable initialization is allowed\n");
+        int value = get_int(node_child[cur][2]);
+        printf("%s: .long %d\n", name, value);
+      } else if (node_type[cur] == var_decl_node) {
+        // declare uninitialized global var
+        printf("%s: .long 0\n", name);
+      }
     }
   }
   printf(".section .text\n");
@@ -458,9 +466,9 @@ void generate_code(int root) {
   for (int i = 0; i < node_child_num[root]; i++) {
     int cur = node_child[root][i];
     if (node_type[cur] == function_impl_node) {
-      char* name = get_symbol(node_child[cur][0]);
-      int stmts = node_child[cur][2];
-      function_params = node_child[cur][1];
+      char* name = get_symbol(node_child[cur][1]);
+      int stmts = node_child[cur][3];
+      function_params = node_child[cur][2];
       return_label = new_temp_label();
 
       local_var_num = 0;
