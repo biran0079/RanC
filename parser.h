@@ -63,6 +63,7 @@ enum NodeType {
   enum_type_node,
   function_type_node,
   param_node,
+  sizeof_node,
 
   node_type_num,
 };

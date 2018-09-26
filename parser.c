@@ -75,6 +75,7 @@ void init_parser() {
   node_type_str[void_type_node] = "void_type";
   node_type_str[function_type_node] = "function_type";
   node_type_str[param_node] = "param";
+  node_type_str[sizeof_node] = "sizeof";
 }
 
 int new_node(int type) {
@@ -276,7 +277,16 @@ int parse_expr0() {
 }
 
 int parse_expr1() {
-  int res = parse_expr0();
+  if (matche_token("sizeof")) {
+    int res = new_node(sizeof_node);
+    append_child(res, parse_expr1());
+    return res;
+  }
+  return parse_expr0();
+}
+
+int parse_expr2() {
+  int res = parse_expr1();
   while (1) {
     int op;
     if (matche_token("*")) {
@@ -297,8 +307,8 @@ int parse_expr1() {
   return res;
 }
 
-int parse_expr2() {
-  int res = parse_expr1();
+int parse_expr3() {
+  int res = parse_expr2();
   while (1) {
     int op;
     if (matche_token("+")) {
@@ -312,7 +322,7 @@ int parse_expr2() {
     res = new_node(op);
     // + - are left associative
     append_child(res, left);
-    append_child(res, parse_expr1());
+    append_child(res, parse_expr2());
   }
   return res;
 }
@@ -336,18 +346,18 @@ int get_cmp_node_type() {
   return -1;
 }
 
-int parse_expr3() {
+int parse_expr4() {
   int res;
   if (matche_token("!")) {
     res = new_node(not_node);
-    append_child(res, parse_expr3());
+    append_child(res, parse_expr4());
   } else {
-    int expr = parse_expr2();
+    int expr = parse_expr3();
     int cmp_node_type = get_cmp_node_type();
     if (cmp_node_type >= 0) {
       res = new_node(cmp_node_type);
       append_child(res, expr);
-      append_child(res, parse_expr2());
+      append_child(res, parse_expr3());
     } else {
       res = expr;
     }
@@ -355,25 +365,12 @@ int parse_expr3() {
   return res;
 }
 
-int parse_expr4() {
-  int expr = parse_expr3();
+int parse_expr5() {
+  int expr = parse_expr4();
   if (!strcmp("&&", peek_token())) {
     int res = new_node(and_node);
     append_child(res, expr);
     while (matche_token("&&")) {
-      append_child(res, parse_expr3());
-    }
-    return res;
-  }
-  return expr;
-}
-
-int parse_expr5() {
-  int expr = parse_expr4();
-  if (!strcmp("||", peek_token())) {
-    int res = new_node(or_node);
-    append_child(res, expr);
-    while (matche_token("||")) {
       append_child(res, parse_expr4());
     }
     return res;
@@ -382,52 +379,65 @@ int parse_expr5() {
 }
 
 int parse_expr6() {
-  int exp = parse_expr5();
+  int expr = parse_expr5();
+  if (!strcmp("||", peek_token())) {
+    int res = new_node(or_node);
+    append_child(res, expr);
+    while (matche_token("||")) {
+      append_child(res, parse_expr5());
+    }
+    return res;
+  }
+  return expr;
+}
+
+int parse_expr7() {
+  int exp = parse_expr6();
   if (matche_token("?")) {
     int res = new_node(ternary_condition_node);
     append_child(res, exp);
-    append_child(res, parse_expr6());
+    append_child(res, parse_expr7());
     check_and_ignore_token(":");
-    append_child(res, parse_expr6());
+    append_child(res, parse_expr7());
     return res;
   }
   return exp;
 }
 
-int parse_expr7() {
-  int expr = parse_expr6();
+int parse_expr8() {
+  int expr = parse_expr7();
   if (matche_token("=")) {
     int res = new_node(assignment_node);
     append_child(res, expr);
     // right associative
-    append_child(res, parse_expr7());
+    append_child(res, parse_expr8());
     return res;
   } else if (matche_token("+=")) {
     int res = new_node(add_eq_node);
     append_child(res, expr);
-    append_child(res, parse_expr7());
+    append_child(res, parse_expr8());
     return res;
   } else if (matche_token("-=")) {
     int res = new_node(sub_eq_node);
     append_child(res, expr);
-    append_child(res, parse_expr7());
+    append_child(res, parse_expr8());
     return res;
   } else if (matche_token("*=")) {
     int res = new_node(mul_eq_node);
     append_child(res, expr);
-    append_child(res, parse_expr7());
+    append_child(res, parse_expr8());
     return res;
   } else if (matche_token("/=")) {
     int res = new_node(div_eq_node);
     append_child(res, expr);
-    append_child(res, parse_expr7());
+    append_child(res, parse_expr8());
     return res;
   }
   return expr;
 }
 
 int parse_expr() {
-  return parse_expr7();
+  return parse_expr8();
 }
 
 int parse_stmt();

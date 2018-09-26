@@ -423,6 +423,8 @@ void generate_expr_internal(int expr, int lvalue) {
     printf("_%d:\n", snd_label);
     generate_expr(node_child[expr][2]);
     printf("_%d:\n", end_label);
+  } else if (t == sizeof_node) {
+    printf("mov eax, %d\n", size_of_type(get_expr_type_node(node_child[expr][0])));
   } else {
     check(0, "unknown expr node type");
   }
