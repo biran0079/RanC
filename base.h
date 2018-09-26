@@ -18,5 +18,6 @@ int strcmp();
 int strlen();
 void strcat();
 void free();
+int max(int a, int b);
 
 #endif

@@ -61,6 +61,7 @@ enum NodeType {
   char_type_node,
   void_type_node,
   enum_type_node,
+  function_type_node,
   param_node,
 
   node_type_num,
@@ -75,5 +76,8 @@ extern char** node_payload;
 
 int parse();
 void init_parser();
+
+int new_node();
+void append_child(int p, int c);
 
 #endif

@@ -73,6 +73,7 @@ void init_parser() {
   node_type_str[int_type_node] = "int_type";
   node_type_str[char_type_node] = "char_type";
   node_type_str[void_type_node] = "void_type";
+  node_type_str[function_type_node] = "function_type";
   node_type_str[param_node] = "param";
 }
 
@@ -89,6 +90,18 @@ int new_node(int type) {
 
 int new_symbol_node(char* s) {
   int res = new_node(symbol_node);
+  node_payload[res] = s;
+  return res;
+}
+
+int new_string_node(char* s) {
+  int res = new_node(string_node);
+  node_payload[res] = s;
+  return res;
+}
+
+int new_int_node(char* s) {
+  int res = new_node(int_node);
   node_payload[res] = s;
   return res;
 }
@@ -163,11 +176,10 @@ int parse_type() {
 // Return node type for primitive token, or -1 if token is not primitive.
 // No token is consumed.
 int get_primitive_node_type() {
+  // string is handled by parse_object() because string literal allows array access
   int type = token_type[next_token_idx];
   if (type == int_token) {
     return int_node;
-  } else if (type == string_token) {
-    return string_node;
   } else if (type == char_token) {
     return char_node;
   }
@@ -180,6 +192,9 @@ int parse_object() {
   int res;
   if (token_type[next_token_idx] == symbol_token) {
     res = new_symbol_node(peek_token());
+    inc_next_token_idx();
+  } else if (token_type[next_token_idx] == string_token) {
+    res = new_string_node(peek_token());
     inc_next_token_idx();
   } else if (matche_token("(")) {
     res = parse_expr();
@@ -222,8 +237,7 @@ int parse_expr0() {
       negative[0] = 0;
       strcat(negative, "-");
       strcat(negative, num);
-      res = new_node(int_node);
-      node_payload[res] = negative;
+      res = new_int_node(negative);
       inc_next_token_idx();
     } else {
       // -a

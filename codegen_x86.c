@@ -1,10 +1,18 @@
 #include "codegen_x86.h"
 
-char** local_var;
+int* global_var_node;
+int global_var_num;
+
+int* local_var_node;
 int local_var_num;
+
 char** enum_key;
 int* enum_value;
 int enum_num;
+
+char** function_name;
+int* function_node;
+int function_num;
 
 int in_function;
 
@@ -40,7 +48,38 @@ char* get_string(int cur) {
   return node_payload[cur];
 }
 
-int register_enum(char* s, int n) {
+void register_global_var(int node) {
+  global_var_node[global_var_num++] = node;
+  check(global_var_num <= MAX_GLOBAL_VARS, "too many global vars");
+}
+
+int lookup_global_var(char* s) {
+  for (int i = 0; i < global_var_num; i++) {
+    int node = global_var_node[i];
+    if (!strcmp(s, get_symbol(node_child[node][1]))) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+int lookup_function_idx(char* s) {
+  for (int i = 0; i < function_num; i++) {
+    int fun_node = function_node[i];
+    char* name = get_symbol(node_child[fun_node][1]);
+    if (!strcmp(s, name)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+void register_function(int node) {
+  function_node[function_num++] = node;
+  check(function_num <= MAX_FUNCTION_NUM, "too many functions");
+}
+
+void register_enum(char* s, int n) {
   int i = enum_num++;
   enum_key[i] = s;
   enum_value[i] = n;
@@ -55,8 +94,9 @@ int lookup_enum_idx(char* s) {
   return -1;
 }
 
-void register_local_var(char* s) {
-  local_var[local_var_num++] = s;
+void register_local_var(int node) {
+  local_var_node[local_var_num] = node;
+  local_var_num++;
   check(local_var_num <= MAX_LOCAL_VARS, "too many local vars");
 }
 
@@ -65,7 +105,9 @@ int lookup_local_var(char* s) {
     return -1;
   }
   for (int i = 0; i < local_var_num; i++) {
-    if (!strcmp(s, local_var[i])) {
+    int node = local_var_node[i];
+    char* name = get_symbol(node_child[node][1]);
+    if (!strcmp(s, name)) {
       return i;
     }
   }
@@ -91,7 +133,7 @@ void register_local_vars(int root) {
     int cur = node_child[root][i];
     int t = node_type[cur];
     if (t == var_decl_node || t == var_init_node) {
-      register_local_var(get_symbol(node_child[cur][1]));
+      register_local_var(cur);
     } else {
       register_local_vars(cur);
     }
@@ -116,6 +158,81 @@ char* get_set_cmp_inst(int type) {
 }
 
 void generate_expr(int expr);
+
+int size_of_type(int type_node) {
+  int t = node_type[type_node];
+  if (t == int_type_node || t == function_type_node || t == ptr_type_node || t == enum_type_node) {
+    return WORD_SIZE;
+  } else if (t == char_type_node || t == void_type_node) {
+    return 1;
+  } 
+  check(0, "unknown type node");
+}
+
+int get_symbol_type_node(char* s) {
+  int idx = lookup_local_var(s);
+  if (idx >= 0) {
+    return node_child[local_var_node[idx]][0];
+  }
+  idx = lookup_param(s);
+  if (idx >= 0) {
+    return node_child[node_child[function_params][idx]][0];
+  }
+  idx = lookup_function_idx(s);
+  if (idx >= 0) {
+    int res = new_node(function_type_node);
+    append_child(res, node_child[function_node[idx]][0]);
+    append_child(res, node_child[function_node[idx]][2]);
+    return res;
+  }
+  idx = lookup_enum_idx(s);
+  if (idx >= 0) {
+    return new_node(enum_type_node);
+  }
+  idx = lookup_global_var(s);
+  if (idx >= 0) {
+    return node_child[global_var_node[idx]][0];
+  }
+  return -1;
+}
+
+int get_expr_type_node(int expr) {
+  int t = node_type[expr];
+  if (t == assignment_node || t == add_eq_node || t == sub_eq_node || t == mul_eq_node || t == div_eq_node
+      || t == or_node || t == and_node || t == not_node || get_set_cmp_inst(t)
+      || t == add_node || t == sub_node || t == mul_node || t == div_node || t == mod_node
+      || t == negative_node || t == inc_prefix_node || t == inc_suffix_node || t == dec_prefix_node || t == dec_suffix_node) {
+    return get_expr_type_node(node_child[expr][0]);
+  } else if (t == int_node) {
+    return new_node(int_type_node);
+  } else if (t == string_node) {
+    int res = new_node(ptr_type_node);
+    append_child(res, new_node(char_type_node));
+    return res;
+  } else if (t == char_node) {
+    return new_node(char_type_node);
+  } else if(t == symbol_node) {
+    int type_node = get_symbol_type_node(get_symbol(expr));
+    check(type_node >= 0, "unknown symbol");
+    return type_node;
+  } else if(t == access_node) {
+    int base = get_expr_type_node(node_child[expr][0]);
+    check(node_type[base] == ptr_type_node, "illegal array accessing");
+    return node_child[base][0];
+  } else if (t == call_node) {
+    int fun = get_expr_type_node(node_child[expr][0]);
+    check(node_type[fun] == function_type_node, "illegal function call");
+    return node_child[fun][0];
+  } else if (t == ternary_condition_node) {
+    return get_expr_type_node(node_child[expr][1]);
+  } else {
+    check(0, "unknown expr node type");
+  }
+}
+
+int get_expr_type_size(int expr) {
+  return size_of_type(get_expr_type_node(expr));
+}
 
 void generate_expr_internal(int expr, int lvalue) {
   int t = node_type[expr];
@@ -249,6 +366,7 @@ void generate_expr_internal(int expr, int lvalue) {
       printf("%s eax, [%s]\n", op, name);
     }
   } else if(t == access_node) {
+    int type_size = get_expr_type_size(expr);
     generate_expr(node_child[expr][0]);
     printf("push eax\n");
     generate_expr(node_child[expr][1]);
@@ -260,7 +378,7 @@ void generate_expr_internal(int expr, int lvalue) {
     } else {
       op = "mov";
     }
-    printf("%s eax, dword ptr [eax * %d + ebx]\n", op, WORD_SIZE);
+    printf("%s eax, dword ptr [eax * %d + ebx]\n", op, type_size);
   } else if(t == call_node) {
     int fun = node_child[expr][0];
     check(node_type[fun] == symbol_node, "function has to be a symbol");
@@ -447,15 +565,22 @@ void generate_code(int root) {
       char* name = get_symbol(node_child[cur][1]);
       // expose function names and global var names
       printf(".globl %s\n", name);
-      if (node_type[cur] == var_init_node) {
+      int t = node_type[cur];
+      if (t == var_init_node) {
         // declare initialized global var
         check(node_child_num[cur] == 3 && node_type[node_child[cur][2]] == int_node,
             "only integer variable initialization is allowed\n");
         int value = get_int(node_child[cur][2]);
         printf("%s: .long %d\n", name, value);
-      } else if (node_type[cur] == var_decl_node) {
+        register_global_var(cur);
+      } else if (t == var_decl_node) {
         // declare uninitialized global var
         printf("%s: .long 0\n", name);
+        register_global_var(cur);
+      } else if (t == extern_var_decl_node) {
+        register_global_var(cur);
+      } else if (t == function_impl_node || t == function_decl_node) {
+        register_function(cur);
       }
     }
   }
@@ -505,9 +630,13 @@ void generate_code(int root) {
 }
 
 void init_codegen() {
-  local_var = malloc(MAX_LOCAL_VARS * WORD_SIZE);
+  local_var_node = malloc(MAX_LOCAL_VARS * WORD_SIZE);
   local_var_num = 0;
   enum_key = malloc(MAX_ENUM_VALUES * WORD_SIZE);
   enum_value = malloc(MAX_ENUM_VALUES * WORD_SIZE);
   enum_num = 0;
+  function_node = malloc(MAX_FUNCTION_NUM * WORD_SIZE);
+  function_num = 0;
+  global_var_node = malloc(MAX_GLOBAL_VARS * WORD_SIZE);
+  global_var_num = 0;
 }
