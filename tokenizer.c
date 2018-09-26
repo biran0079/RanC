@@ -34,7 +34,7 @@ char peek_char() {
 }
 
 void append_char(char c) {
-  (buffer_token + buffer_len++)[0] = c;
+  buffer_token[buffer_len++] = c;
   check(buffer_len <= MAX_TOKEN_LEN, "max token len exceeded\n");
 }
 
