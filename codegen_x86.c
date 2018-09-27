@@ -225,6 +225,14 @@ int get_expr_type_node(int expr) {
     return node_child[fun][0];
   } else if (t == ternary_condition_node) {
     return get_expr_type_node(node_child[expr][1]);
+  } else if (t == address_of_node) {
+    int res = new_node(ptr_type_node);
+    append_child(res, get_expr_type_node(node_child[expr][0]));
+    return res;
+  } else if (t == dereference_node) {
+    int tmp = get_expr_type_node(node_child[expr][0]);
+    check(node_type[tmp] == ptr_type_node, "only ptr_type can be dereferenced");
+    return node_child[tmp][0];
   } else {
     check(0, "unknown expr node type");
   }
@@ -232,6 +240,16 @@ int get_expr_type_node(int expr) {
 
 int get_expr_type_size(int expr) {
   return size_of_type(get_expr_type_node(expr));
+}
+
+int is_type_node(int expr) {
+  int t = node_type[expr];
+  return t == ptr_type_node
+      || t == int_type_node
+      || t == char_type_node
+      || t == void_type_node
+      || t == enum_type_node
+      || t == function_type_node;
 }
 
 void generate_expr_internal(int expr, int lvalue) {
@@ -440,7 +458,19 @@ void generate_expr_internal(int expr, int lvalue) {
     generate_expr(node_child[expr][2]);
     printf("_%d:\n", end_label);
   } else if (t == sizeof_node) {
-    printf("mov eax, %d\n", size_of_type(get_expr_type_node(node_child[expr][0])));
+    int node = node_child[expr][0];
+    if (!is_type_node(node)) {
+      node = get_expr_type_node(node);
+    }
+    printf("mov eax, %d\n", size_of_type(node));
+  } else if (t == address_of_node) {
+    check(!lvalue, "& operator does not generate left value");
+    generate_expr_internal(node_child[expr][0], 1);
+  } else if (t == dereference_node) {
+    generate_expr(node_child[expr][0]);
+    if (!lvalue) {
+      printf("mov eax, [eax]\n");
+    }
   } else {
     check(0, "unknown expr node type");
   }

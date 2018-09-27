@@ -121,7 +121,9 @@ void read_single_token() {
     buffer_token_type = operator_token;
   } else if(peek_char() == '&') {
     eat_char();
-    check_and_eat_char('&');
+    if (peek_char() == '&') {
+      eat_char();
+    }
     buffer_token_type = operator_token;
   } else if (peek_char() == '=' 
      || peek_char() == '!'

@@ -16,5 +16,7 @@ int main() {
   printf("%d\n", sizeof(1+1));
   printf("%d\n", sizeof(0&&1));
   printf("%d\n", sizeof f());
+  printf("%d\n", sizeof(int));
+  printf("%d\n", sizeof(int**));
   return 0;
 }

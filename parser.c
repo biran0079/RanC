@@ -76,6 +76,8 @@ void init_parser() {
   node_type_str[function_type_node] = "function_type";
   node_type_str[param_node] = "param";
   node_type_str[sizeof_node] = "sizeof";
+  node_type_str[address_of_node] = "address_of";
+  node_type_str[dereference_node] = "dereference";
 }
 
 int new_node(int type) {
@@ -279,6 +281,26 @@ int parse_expr0() {
 int parse_expr1() {
   if (matche_token("sizeof")) {
     int res = new_node(sizeof_node);
+    int open_paren = matche_token("(");
+    if (is_base_type(peek_token())) {
+      append_child(res, parse_type());
+    } else {
+      if (open_paren) {
+        append_child(res, parse_expr());
+      } else {
+        append_child(res, parse_expr1());
+      }
+    }
+    if (open_paren) {
+      check_and_ignore_token(")");
+    }
+    return res;
+  } else if (matche_token("*")) {
+    int res = new_node(dereference_node);
+    append_child(res, parse_expr1());
+    return res;
+  } else if (matche_token("&")) {
+    int res = new_node(address_of_node);
     append_child(res, parse_expr1());
     return res;
   }
@@ -302,7 +324,7 @@ int parse_expr2() {
     res = new_node(op);
     // * % / are left associative
     append_child(res, left);
-    append_child(res, parse_expr0());
+    append_child(res, parse_expr1());
   }
   return res;
 }
