@@ -616,7 +616,9 @@ int parse_params() {
   while (!matche_token(")")) {
     int param = new_node(param_node);
     append_child(params, param);
-    append_child(param, parse_type());
+    int type_node = parse_type();
+    check(node_type[type_node] != struct_type_node, "only struct pointer param is supported for now");
+    append_child(param, type_node);
     append_child(param, new_symbol_node(peek_token()));
     inc_next_token_idx();
     matche_token(","); // Won't match for the last param.
@@ -668,6 +670,7 @@ int parse_decl() {
     return res;
   } 
   int type_node = parse_type();
+  check(node_type[type_node] != struct_type_node, "only struct pointer is supported for now");
   int res;
   char* name = peek_token();
   inc_next_token_idx();

@@ -8,7 +8,7 @@ struct A {
   int* a;
   char b;
   int c;
-  struct B d;
+  struct B* d;
 };
 
 int main() {
