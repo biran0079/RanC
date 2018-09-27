@@ -2,12 +2,6 @@
 #include "parser.h"
 
 char** node_type_str;
-int* node_type;
-int** node_child;
-int* node_child_num;
-int* node_child_cap;
-char** node_payload;
-int node_num = 0;
 
 struct ParserContext {
   struct List* tokens;
@@ -15,11 +9,6 @@ struct ParserContext {
 };
 
 void init_parser() {
-  node_type = malloc(MAX_NODE_NUM * WORD_SIZE);
-  node_child = malloc(MAX_NODE_NUM * WORD_SIZE);
-  node_child_num = malloc(MAX_NODE_NUM * WORD_SIZE);
-  node_child_cap = malloc(MAX_NODE_NUM * WORD_SIZE);
-  node_payload = malloc(MAX_NODE_NUM * WORD_SIZE);
   // segfalut without -m32 because node_type_str will overflow
   node_type_str = malloc(node_type_num * WORD_SIZE);
   node_type_str[prog_node] = "prog";
@@ -86,44 +75,34 @@ void init_parser() {
   node_type_str[void_type_node] = "void_type";
   node_type_str[function_type_node] = "function_type";
   node_type_str[struct_type_node] = "struct_type";
+
+  node_type_str[invalid_node] = "invalid";
 }
 
-int new_node(int type) {
-  int res = node_num++;
-  check(node_num <= MAX_NODE_NUM, "too many nodes");
-  node_type[res] = type;
-  node_child_num[res] = 0;
-  node_child_cap[res] = 2;
-  node_child[res] = malloc(2 * WORD_SIZE);
-  node_payload[res] = 0;
+struct Node* new_node(enum NodeType type) {
+  struct Node* res = malloc(sizeof(struct Node));
+  res->type = type;
+  res->child = new_list();
+  res->payload = 0;
   return res;
 }
 
-int new_symbol_node(char* s) {
-  int res = new_node(symbol_node);
-  node_payload[res] = s;
+struct Node* new_node_with_payload(enum NodeType type, char* s) {
+  struct Node* res = new_node(type);
+  res->payload = s;
   return res;
 }
 
-int new_string_node(char* s) {
-  int res = new_node(string_node);
-  node_payload[res] = s;
-  return res;
+int child_num(struct Node* root) {
+  return list_size(root->child);
 }
 
-int new_int_node(char* s) {
-  int res = new_node(int_node);
-  node_payload[res] = s;
-  return res;
+struct Node* get_child(struct Node* root, int i) {
+  return list_get(root->child, i);
 }
 
-void append_child(int par, int child) {
-  if (node_child_num[par] == node_child_cap[par]) {
-    node_child_cap[par] = node_child_cap[par] * 2;
-    node_child[par] = realloc(node_child[par], node_child_cap[par] * WORD_SIZE);
-  }
-  node_child[par][node_child_num[par]] = child;
-  node_child_num[par]++;
+void append_child(struct Node* p, struct Node* c) {
+  list_add(p->child, c);
 }
 
 int is_base_type(char* s) {
@@ -146,10 +125,6 @@ enum TokenType peek_token_type(struct ParserContext* ctx) {
   return t->type;
 }
 
-void inc_next_token_idx(struct ParserContext* ctx) {
-  ctx->idx++;
-}
-
 // read and move forward
 char* next_token(struct ParserContext* ctx) {
   struct Token* t = list_get(ctx->tokens, ctx->idx++);
@@ -158,7 +133,7 @@ char* next_token(struct ParserContext* ctx) {
 
 int match_token(struct ParserContext* ctx, char* s) {
   if (!strcmp(s, peek_token(ctx))) {
-    inc_next_token_idx(ctx);
+    ctx->idx++;
     return 1;
   }
   return 0;
@@ -168,14 +143,14 @@ void check_and_ignore_token(struct ParserContext* ctx, char* s) {
   check(match_token(ctx, s), "check_and_ignore_token failed\n");
 }
 
-int parse_type(struct ParserContext* ctx) {
-  int res;
+struct Node* parse_type(struct ParserContext* ctx) {
+  struct Node* res;
   if (match_token(ctx, "enum")) {
     res = new_node(enum_type_node);
-    append_child(res, new_symbol_node(next_token(ctx)));
+    append_child(res, new_node_with_payload(symbol_node, next_token(ctx)));
   } else if (match_token(ctx, "struct")) {
     res = new_node(struct_type_node);
-    append_child(res, new_symbol_node(next_token(ctx)));
+    append_child(res, new_node_with_payload(symbol_node, next_token(ctx)));
   } else if (match_token(ctx, "int")) {
     res = new_node(int_type_node);
   } else if (match_token(ctx, "char")) {
@@ -186,7 +161,7 @@ int parse_type(struct ParserContext* ctx) {
     check(0, "unknown type\n");
   }
   while (match_token(ctx, "*")) { 
-    int t = res;
+    struct Node* t = res;
     res = new_node(ptr_type_node);
     append_child(res, t);  
   }
@@ -195,25 +170,25 @@ int parse_type(struct ParserContext* ctx) {
 
 // Return node type for primitive token, or -1 if token is not primitive.
 // No token is consumed.
-int get_primitive_node_type(struct ParserContext* ctx) {
+enum NodeType get_primitive_node_type(struct ParserContext* ctx) {
   // string is handled by parse_object() because string literal allows array access
-  int type = peek_token_type(ctx);
+  enum NodeType type = peek_token_type(ctx);
   if (type == int_token) {
     return int_node;
   } else if (type == char_token) {
     return char_node;
   }
-  return -1;
+  return invalid_node;
 }
 
-int parse_expr(struct ParserContext* ctx);
+struct Node* parse_expr(struct ParserContext* ctx);
 
-int parse_object(struct ParserContext* ctx) {
-  int res;
+struct Node* parse_object(struct ParserContext* ctx) {
+  struct Node* res;
   if (peek_token_type(ctx) == symbol_token) {
-    res = new_symbol_node(next_token(ctx));
+    res = new_node_with_payload(symbol_node, next_token(ctx));
   } else if (peek_token_type(ctx) == string_token) {
-    res = new_string_node(next_token(ctx));
+    res = new_node_with_payload(string_node, next_token(ctx));
   } else if (match_token(ctx, "(")) {
     res = parse_expr(ctx);
     check_and_ignore_token(ctx, ")");
@@ -222,33 +197,33 @@ int parse_object(struct ParserContext* ctx) {
   }
   while (1) {
     if (match_token(ctx, "[")) {
-      int arr_expr = res;
-      int idx_expr = parse_expr(ctx);
+      struct Node* arr_expr = res;
+      struct Node* idx_expr = parse_expr(ctx);
       check_and_ignore_token(ctx, "]");
       res = new_node(access_node);
       append_child(res, arr_expr);
       append_child(res, idx_expr);
     } else if (match_token(ctx, "(")) {
-      int args = new_node(args_node);
+      struct Node* args = new_node(args_node);
       while (!match_token(ctx, ")")) {
         append_child(args, parse_expr(ctx));
         match_token(ctx, ","); // does not match for the last arg
       }
-      int func = res;
+      struct Node* func = res;
       res = new_node(call_node);
       append_child(res, func);
       append_child(res, args);
     } else if (match_token(ctx, "->")) {
-      int t = new_node(struct_ptr_access_node);
+      struct Node* t = new_node(struct_ptr_access_node);
       append_child(t, res);
       check(peek_token_type(ctx) == symbol_token, "-> only follows symbol token");
-      append_child(t, new_symbol_node(next_token(ctx)));
+      append_child(t, new_node_with_payload(symbol_node, next_token(ctx)));
       res = t;
     } else if (match_token(ctx, ".")) {
-      int t = new_node(struct_access_node);
+      struct Node* t = new_node(struct_access_node);
       append_child(t, res);
       check(peek_token_type(ctx) == symbol_token, ". only follows symbol token");
-      append_child(t, new_symbol_node(next_token(ctx)));
+      append_child(t, new_node_with_payload(symbol_node, next_token(ctx)));
       res = t;
     } else {
       break;
@@ -257,8 +232,8 @@ int parse_object(struct ParserContext* ctx) {
   return res;
 }
 
-int parse_expr0(struct ParserContext* ctx) {
-  int res;
+struct Node* parse_expr0(struct ParserContext* ctx) {
+  struct Node* res;
   if (match_token(ctx, "-")) {
     if (peek_token_type(ctx) == int_token) {
       // -1
@@ -267,7 +242,7 @@ int parse_expr0(struct ParserContext* ctx) {
       negative[0] = 0;
       strcat(negative, "-");
       strcat(negative, num);
-      res = new_int_node(negative);
+      res = new_node_with_payload(int_node, negative);
     } else {
       // -a
       res = new_node(negative_node);
@@ -275,10 +250,9 @@ int parse_expr0(struct ParserContext* ctx) {
     }
     return res;
   }
-  int type = get_primitive_node_type(ctx);
-  if (type >= 0) {
-    res = new_node(type);
-    node_payload[res] = next_token(ctx);
+  enum NodeType type = get_primitive_node_type(ctx);
+  if (type != invalid_node) {
+    res = new_node_with_payload(type, next_token(ctx));
     return res;
   }
   if (match_token(ctx, "++")) {
@@ -290,7 +264,7 @@ int parse_expr0(struct ParserContext* ctx) {
   } else {
     res = parse_object(ctx);
   }
-  int t;
+  struct Node* t;
   if (match_token(ctx, "++")) {
     t = res;
     res = new_node(inc_suffix_node);
@@ -303,9 +277,9 @@ int parse_expr0(struct ParserContext* ctx) {
   return res;
 }
 
-int parse_expr1(struct ParserContext* ctx) {
+struct Node* parse_expr1(struct ParserContext* ctx) {
   if (match_token(ctx, "sizeof")) {
-    int res = new_node(sizeof_node);
+    struct Node* res = new_node(sizeof_node);
     int open_paren = match_token(ctx, "(");
     if (is_base_type(peek_token(ctx))) {
       append_child(res, parse_type(ctx));
@@ -321,21 +295,21 @@ int parse_expr1(struct ParserContext* ctx) {
     }
     return res;
   } else if (match_token(ctx, "*")) {
-    int res = new_node(dereference_node);
+    struct Node* res = new_node(dereference_node);
     append_child(res, parse_expr1(ctx));
     return res;
   } else if (match_token(ctx, "&")) {
-    int res = new_node(address_of_node);
+    struct Node* res = new_node(address_of_node);
     append_child(res, parse_expr1(ctx));
     return res;
   }
   return parse_expr0(ctx);
 }
 
-int parse_expr2(struct ParserContext* ctx) {
-  int res = parse_expr1(ctx);
+struct Node* parse_expr2(struct ParserContext* ctx) {
+  struct Node* res = parse_expr1(ctx);
   while (1) {
-    int op;
+    enum NodeType op;
     if (match_token(ctx, "*")) {
       op = mul_node;
     } else if (match_token(ctx, "/")) {
@@ -345,7 +319,7 @@ int parse_expr2(struct ParserContext* ctx) {
     } else {
       break;
     }
-    int left = res;
+    struct Node* left = res;
     res = new_node(op);
     // * % / are left associative
     append_child(res, left);
@@ -354,10 +328,10 @@ int parse_expr2(struct ParserContext* ctx) {
   return res;
 }
 
-int parse_expr3(struct ParserContext* ctx) {
-  int res = parse_expr2(ctx);
+struct Node* parse_expr3(struct ParserContext* ctx) {
+  struct Node* res = parse_expr2(ctx);
   while (1) {
-    int op;
+    enum NodeType op;
     if (match_token(ctx, "+")) {
       op = add_node;
     } else if (match_token(ctx, "-")) {
@@ -365,7 +339,7 @@ int parse_expr3(struct ParserContext* ctx) {
     } else {
       break;
     }
-    int left = res;
+    struct Node* left = res;
     res = new_node(op);
     // + - are left associative
     append_child(res, left);
@@ -376,7 +350,7 @@ int parse_expr3(struct ParserContext* ctx) {
 
 // Consume comparison token and return corresponding node type.
 // If no comparison token found then return -1 and no token is not consumed.
-int get_cmp_node_type(struct ParserContext* ctx) {
+enum NodeType get_cmp_node_type(struct ParserContext* ctx) {
   if (match_token(ctx, "==")) {
     return eq_node;
   } else if (match_token(ctx, "!=")) {
@@ -390,18 +364,18 @@ int get_cmp_node_type(struct ParserContext* ctx) {
   } else if (match_token(ctx, ">=")) {
     return ge_node;
   }
-  return -1;
+  return invalid_node;
 }
 
-int parse_expr4(struct ParserContext* ctx) {
-  int res;
+struct Node* parse_expr4(struct ParserContext* ctx) {
+  struct Node* res;
   if (match_token(ctx, "!")) {
     res = new_node(not_node);
     append_child(res, parse_expr4(ctx));
   } else {
-    int expr = parse_expr3(ctx);
-    int cmp_node_type = get_cmp_node_type(ctx);
-    if (cmp_node_type >= 0) {
+    struct Node* expr = parse_expr3(ctx);
+    enum NodeType cmp_node_type = get_cmp_node_type(ctx);
+    if (cmp_node_type != invalid_node) {
       res = new_node(cmp_node_type);
       append_child(res, expr);
       append_child(res, parse_expr3(ctx));
@@ -412,10 +386,10 @@ int parse_expr4(struct ParserContext* ctx) {
   return res;
 }
 
-int parse_expr5(struct ParserContext* ctx) {
-  int expr = parse_expr4(ctx);
+struct Node* parse_expr5(struct ParserContext* ctx) {
+  struct Node* expr = parse_expr4(ctx);
   if (!strcmp("&&", peek_token(ctx))) {
-    int res = new_node(and_node);
+    struct Node* res = new_node(and_node);
     append_child(res, expr);
     while (match_token(ctx, "&&")) {
       append_child(res, parse_expr4(ctx));
@@ -425,10 +399,10 @@ int parse_expr5(struct ParserContext* ctx) {
   return expr;
 }
 
-int parse_expr6(struct ParserContext* ctx) {
-  int expr = parse_expr5(ctx);
+struct Node* parse_expr6(struct ParserContext* ctx) {
+  struct Node* expr = parse_expr5(ctx);
   if (!strcmp("||", peek_token(ctx))) {
-    int res = new_node(or_node);
+    struct Node* res = new_node(or_node);
     append_child(res, expr);
     while (match_token(ctx, "||")) {
       append_child(res, parse_expr5(ctx));
@@ -438,10 +412,10 @@ int parse_expr6(struct ParserContext* ctx) {
   return expr;
 }
 
-int parse_expr7(struct ParserContext* ctx) {
-  int exp = parse_expr6(ctx);
+struct Node* parse_expr7(struct ParserContext* ctx) {
+  struct Node* exp = parse_expr6(ctx);
   if (match_token(ctx, "?")) {
-    int res = new_node(ternary_condition_node);
+    struct Node* res = new_node(ternary_condition_node);
     append_child(res, exp);
     append_child(res, parse_expr7(ctx));
     check_and_ignore_token(ctx, ":");
@@ -451,31 +425,31 @@ int parse_expr7(struct ParserContext* ctx) {
   return exp;
 }
 
-int parse_expr8(struct ParserContext* ctx) {
-  int expr = parse_expr7(ctx);
+struct Node* parse_expr8(struct ParserContext* ctx) {
+  struct Node* expr = parse_expr7(ctx);
   if (match_token(ctx, "=")) {
-    int res = new_node(assignment_node);
+    struct Node* res = new_node(assignment_node);
     append_child(res, expr);
     // right associative
     append_child(res, parse_expr8(ctx));
     return res;
   } else if (match_token(ctx, "+=")) {
-    int res = new_node(add_eq_node);
+    struct Node* res = new_node(add_eq_node);
     append_child(res, expr);
     append_child(res, parse_expr8(ctx));
     return res;
   } else if (match_token(ctx, "-=")) {
-    int res = new_node(sub_eq_node);
+    struct Node* res = new_node(sub_eq_node);
     append_child(res, expr);
     append_child(res, parse_expr8(ctx));
     return res;
   } else if (match_token(ctx, "*=")) {
-    int res = new_node(mul_eq_node);
+    struct Node* res = new_node(mul_eq_node);
     append_child(res, expr);
     append_child(res, parse_expr8(ctx));
     return res;
   } else if (match_token(ctx, "/=")) {
-    int res = new_node(div_eq_node);
+    struct Node* res = new_node(div_eq_node);
     append_child(res, expr);
     append_child(res, parse_expr8(ctx));
     return res;
@@ -483,15 +457,15 @@ int parse_expr8(struct ParserContext* ctx) {
   return expr;
 }
 
-int parse_expr(struct ParserContext* ctx) {
+struct Node* parse_expr(struct ParserContext* ctx) {
   return parse_expr8(ctx);
 }
 
-int parse_stmt(struct ParserContext* ctx);
-int parse_block(struct ParserContext* ctx);
+struct Node* parse_stmt(struct ParserContext* ctx);
+struct Node* parse_block(struct ParserContext* ctx);
 
-int parse_if(struct ParserContext* ctx) {
-  int res = new_node(if_node);
+struct Node* parse_if(struct ParserContext* ctx) {
+  struct Node* res = new_node(if_node);
   check_and_ignore_token(ctx, "(");
   append_child(res, parse_expr(ctx));
   check_and_ignore_token(ctx, ")");
@@ -506,8 +480,8 @@ int parse_if(struct ParserContext* ctx) {
   return res;
 }
 
-int parse_while(struct ParserContext* ctx) {
-  int res = new_node(while_do_node);
+struct Node* parse_while(struct ParserContext* ctx) {
+  struct Node* res = new_node(while_do_node);
   check_and_ignore_token(ctx, "(");
   append_child(res, parse_expr(ctx));
   check_and_ignore_token(ctx, ")");
@@ -515,8 +489,8 @@ int parse_while(struct ParserContext* ctx) {
   return res;
 }
 
-int parse_do_while(struct ParserContext* ctx) {
-  int res = new_node(do_while_node);
+struct Node* parse_do_while(struct ParserContext* ctx) {
+  struct Node* res = new_node(do_while_node);
   append_child(res, parse_block(ctx));
   check_and_ignore_token(ctx, "while");
   check_and_ignore_token(ctx, "(");
@@ -526,16 +500,16 @@ int parse_do_while(struct ParserContext* ctx) {
   return res;
 }
 
-int parse_decl(struct ParserContext* ctx);
+struct Node* parse_decl(struct ParserContext* ctx);
 
-int parse_stmt(struct ParserContext* ctx);
+struct Node* parse_stmt(struct ParserContext* ctx);
 
-int noop_expr() {
+struct Node* noop_expr() {
   return new_node(noop_node);
 }
 
-int parse_for(struct ParserContext* ctx) {
-  int res = new_node(for_node);
+struct Node* parse_for(struct ParserContext* ctx) {
+  struct Node* res = new_node(for_node);
   check_and_ignore_token(ctx, "(");
   append_child(res, parse_stmt(ctx));
   if (!strcmp(peek_token(ctx), ";")) {
@@ -554,8 +528,8 @@ int parse_for(struct ParserContext* ctx) {
   return res;
 }
 
-int parse_return(struct ParserContext* ctx) {
-  int res = new_node(return_node);
+struct Node* parse_return(struct ParserContext* ctx) {
+  struct Node* res = new_node(return_node);
   if (!match_token(ctx, ";")) {
     append_child(res, parse_expr(ctx));
     check_and_ignore_token(ctx, ";");
@@ -563,7 +537,7 @@ int parse_return(struct ParserContext* ctx) {
   return res;
 }
 
-int parse_stmt(struct ParserContext* ctx) {
+struct Node* parse_stmt(struct ParserContext* ctx) {
   if (match_token(ctx, "if")) {
     return parse_if(ctx);
   } else if (match_token(ctx, "while")) {
@@ -575,11 +549,11 @@ int parse_stmt(struct ParserContext* ctx) {
   } else if (match_token(ctx, "return")) {
     return parse_return(ctx);
   } else if (match_token(ctx, "break")) {
-    int res = new_node(break_node);
+    struct Node* res = new_node(break_node);
     check_and_ignore_token(ctx, ";");
     return res;
   } else if (match_token(ctx, "continue")) {
-    int res = new_node(continue_node);
+    struct Node* res = new_node(continue_node);
     check_and_ignore_token(ctx, ";");
     return res;
   } else if (is_base_type(peek_token(ctx))) {
@@ -590,14 +564,13 @@ int parse_stmt(struct ParserContext* ctx) {
   } else if (match_token(ctx, ";")) {
     return noop_expr();
   }
-  int res = parse_expr(ctx);
+  struct Node* res = parse_expr(ctx);
   check_and_ignore_token(ctx, ";");
   return res;
 }
 
-int parse_block(struct ParserContext* ctx) {
-  int res = new_node(stmts_node);
-  node_type[res] = stmts_node;
+struct Node* parse_block(struct ParserContext* ctx) {
+  struct Node* res = new_node(stmts_node);
   check_and_ignore_token(ctx, "{");
   while (!match_token(ctx, "}")) {
     append_child(res, parse_stmt(ctx));
@@ -605,41 +578,39 @@ int parse_block(struct ParserContext* ctx) {
   return res;
 }
 
-int parse_params(struct ParserContext* ctx) {
+struct Node* parse_params(struct ParserContext* ctx) {
   check_and_ignore_token(ctx, "(");
-  int params = new_node(params_node);
-  node_type[params] = params_node;
+  struct Node* params = new_node(params_node);
   while (!match_token(ctx, ")")) {
-    int param = new_node(param_node);
+    struct Node* param = new_node(param_node);
     append_child(params, param);
-    int type_node = parse_type(ctx);
-    check(node_type[type_node] != struct_type_node, "only struct pointer param is supported for now");
+    struct Node* type_node = parse_type(ctx);
+    check(type_node->type != struct_type_node, "only struct pointer param is supported for now");
     append_child(param, type_node);
-    append_child(param, new_symbol_node(next_token(ctx)));
+    append_child(param, new_node_with_payload(symbol_node, next_token(ctx)));
     match_token(ctx, ","); // Won't match for the last param.
   }
   return params;
 }
 
-int parse_decl(struct ParserContext* ctx) {
+struct Node* parse_decl(struct ParserContext* ctx) {
   int extern_decl = 0;
   if (match_token(ctx, "extern")) {
     extern_decl = 1;
   }
   if (!strcmp(peek_token(ctx), "enum") && !strcmp(look_ahead(ctx, 2), "{")) {
     // enum def
-    inc_next_token_idx(ctx); // skip "enum"
-    int res = new_node(enum_node);
-    append_child(res, new_symbol_node(next_token(ctx)));
+    ctx->idx++; // skip "enum"
+    struct Node* res = new_node(enum_node);
+    append_child(res, new_node_with_payload(symbol_node, next_token(ctx)));
     check_and_ignore_token(ctx, "{");
     while (!match_token(ctx, "}")) {
-      int value = new_node(enum_value_node);
+      struct Node* value = new_node(enum_value_node);
       append_child(res, value);
-      append_child(value, new_symbol_node(next_token(ctx)));
+      append_child(value, new_node_with_payload(symbol_node, next_token(ctx)));
       if (match_token(ctx, "=")) {
         check(peek_token_type(ctx) == int_token, "int token expected for enum initialization");
-        int int_value = new_node(int_node);
-        node_payload[int_value] = next_token(ctx);
+        struct Node* int_value = new_node_with_payload(int_node, next_token(ctx));
         append_child(value, int_value);
       }
       match_token(ctx, ",");
@@ -648,34 +619,34 @@ int parse_decl(struct ParserContext* ctx) {
     return res;
   } else if (!strcmp(peek_token(ctx), "struct") && !strcmp(look_ahead(ctx, 2), "{")) {
     // struct def
-    inc_next_token_idx(ctx); // skip "struct"
-    int res = new_node(struct_node);
-    append_child(res, new_symbol_node(next_token(ctx)));
+    ctx->idx++; // skip "struct"
+    struct Node* res = new_node(struct_node);
+    append_child(res, new_node_with_payload(symbol_node, next_token(ctx)));
     check_and_ignore_token(ctx, "{");
     while (!match_token(ctx, "}")) {
-      int decl = parse_decl(ctx);
-      check(node_type[decl] == var_decl_node, "only variable delaration is allowed in struct");
+      struct Node* decl = parse_decl(ctx);
+      check(decl->type == var_decl_node, "only variable delaration is allowed in struct");
       append_child(res, decl);
     }
     check_and_ignore_token(ctx, ";");
     return res;
   } 
-  int type_node = parse_type(ctx);
-  check(node_type[type_node] != struct_type_node, "only struct pointer is supported for now");
-  int res;
+  struct Node* type_node = parse_type(ctx);
+  check(type_node->type != struct_type_node, "only struct pointer is supported for now");
+  struct Node* res;
   char* name = next_token(ctx);
   if (!strcmp(peek_token(ctx), "(")) {
-    int params = parse_params(ctx);
+    struct Node* params = parse_params(ctx);
     if (!strcmp(peek_token(ctx), "{")) {
       res = new_node(function_impl_node);
       append_child(res, type_node);
-      append_child(res, new_symbol_node(name));
+      append_child(res, new_node_with_payload(symbol_node, name));
       append_child(res, params);
       append_child(res, parse_block(ctx));
     } else {
       res = new_node(function_decl_node);
       append_child(res, type_node);
-      append_child(res, new_symbol_node(name));
+      append_child(res, new_node_with_payload(symbol_node, name));
       append_child(res, params);
       check_and_ignore_token(ctx, ";");
     }
@@ -688,7 +659,7 @@ int parse_decl(struct ParserContext* ctx) {
       res = new_node(var_decl_node);
     }
     append_child(res, type_node);
-    append_child(res, new_symbol_node(name));
+    append_child(res, new_node_with_payload(symbol_node, name));
     if (match_token(ctx, "=")) {
       append_child(res, parse_expr(ctx));
     } 
@@ -697,15 +668,15 @@ int parse_decl(struct ParserContext* ctx) {
   return res;
 }
 
-int parse_prog(struct ParserContext* ctx) {
-  int res = new_node(prog_node);
+struct Node* parse_prog(struct ParserContext* ctx) {
+  struct Node* res = new_node(prog_node);
   while (peek_token_type(ctx) != eof_token) {
     append_child(res, parse_decl(ctx));
   }
   return res;
 }
 
-int parse(struct List* tokens) {
+struct Node* parse(struct List* tokens) {
   struct ParserContext* ctx = malloc(sizeof(struct ParserContext));
   ctx->idx = 0;
   ctx->tokens = tokens;
@@ -718,20 +689,20 @@ void print_space(int n) {
   }
 }
 
-void print_ast_internal(int root, int indent) {
+void print_ast_internal(struct Node* root, int indent) {
   print_space(indent);
-  printf("(%s", node_type_str[node_type[root]]);
-  if (node_payload[root]) {
-    printf(" %s", node_payload[root]);
+  printf("(%s", node_type_str[root->type]);
+  if (root->payload) {
+    printf(" %s", root->payload);
   }
-  for (int i = 0; i < node_child_num[root]; i++) {
+  for (int i = 0; i < list_size(root->child); i++) {
     printf("\n");
-    print_ast_internal(node_child[root][i], indent + 2);
+    print_ast_internal(get_child(root, i), indent + 2);
   }
   printf(")");
 }
 
-void print_ast(int root) {
+void print_ast(struct Node* root) {
   print_ast_internal(root, 0); 
   printf("\n");
 }

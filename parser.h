@@ -2,11 +2,12 @@
 #define __PARSER_H__
 
 #include "base.h"
+#include "list.h"
 #include "tokenizer.h"
 
-#define MAX_NODE_NUM 10000
-
 enum NodeType {
+  invalid_node,
+
   prog_node,
   var_decl_node,
   function_decl_node,
@@ -76,19 +77,29 @@ enum NodeType {
   node_type_num,
 };
 
+struct Node {
+  enum NodeType type;
+  struct List* child;
+  char* payload;
+};
+
 extern char** node_type_str;
-extern int* node_type;
-extern int** node_child;
-extern int* node_child_num;
-extern int* node_child_cap;
-extern char** node_payload;
 
 void init_parser();
-int parse(struct List* tokens);
 
-int new_node();
-void append_child(int p, int c);
+struct Node* parse(struct List* tokens);
 
-void print_ast(int root);
+struct Node* new_node(enum NodeType type);
+
+struct Node* new_node_with_payload(enum NodeType type, char* s);
+
+struct Node* get_child(struct Node* root, int i);
+
+int child_num(struct Node* root);
+
+void append_child(struct Node* p, struct Node* c);
+
+void print_ast(struct Node* root);
+
 
 #endif

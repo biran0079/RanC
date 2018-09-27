@@ -11,6 +11,6 @@
 #define MAX_STRUCT_DEF_NUM 10000
 
 void init_codegen();
-void generate_code(int ast);
+void generate_code(struct Node* ast);
 
 #endif
