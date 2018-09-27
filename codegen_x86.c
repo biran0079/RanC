@@ -225,6 +225,36 @@ int get_symbol_type_node(char* s) {
   return -1;
 }
 
+int lookup_struct_member_type_node(int struct_type, char* name) {
+  check(node_type[struct_type] == struct_type_node, "lookup_struct_member_type_node");
+  int idx = lookup_struct_def_idx(get_symbol(node_child[struct_type][0]));
+  check(idx >= 0, "struct def not found");
+  int def = struct_def_node[idx];
+  for (int i = 1; i < node_child_num[def]; i++) {
+    int t = node_child[def][i];
+    if (!strcmp(name, get_symbol(node_child[t][1]))) {
+      return node_child[t][0];
+    }
+  }
+  check(0, "struct member not found");
+}
+
+int get_struct_member_offset(int struct_type, char* name) {
+  check(node_type[struct_type] == struct_type_node, "get_struct_member_offset");
+  int idx = lookup_struct_def_idx(get_symbol(node_child[struct_type][0]));
+  check(idx >= 0, "struct def not found");
+  int def = struct_def_node[idx];
+  int res = 0;
+  for (int i = 1; i < node_child_num[def]; i++) {
+    int t = node_child[def][i];
+    if (!strcmp(name, get_symbol(node_child[t][1]))) {
+      return res;
+    }
+    res += size_of_type(node_child[t][0]);
+  }
+  check(0, "struct member not found");
+}
+
 int get_expr_type_node(int expr) {
   int t = node_type[expr];
   if (t == assignment_node || t == add_eq_node || t == sub_eq_node || t == mul_eq_node || t == div_eq_node
@@ -262,6 +292,16 @@ int get_expr_type_node(int expr) {
     int tmp = get_expr_type_node(node_child[expr][0]);
     check(node_type[tmp] == ptr_type_node, "only ptr_type can be dereferenced");
     return node_child[tmp][0];
+  } else if (t == struct_access_node) {
+    int tmp = get_expr_type_node(node_child[expr][0]);
+    check(node_type[tmp] == struct_type_node, ". only works for struct");
+    return lookup_struct_member_type_node(tmp, get_symbol(node_child[expr][1]));
+  } else if (t == struct_ptr_access_node) {
+    int ptr = get_expr_type_node(node_child[expr][0]);
+    check(node_type[ptr] == ptr_type_node, "-> only works for struct pointer");
+    int tmp = node_child[ptr][0];
+    check(node_type[tmp] == struct_type_node, "-> only works for struct pointer");
+    return lookup_struct_member_type_node(tmp, get_symbol(node_child[expr][1]));
   } else {
     check(0, "unknown expr node type");
   }
@@ -498,6 +538,28 @@ void generate_expr_internal(int expr, int lvalue) {
     generate_expr_internal(node_child[expr][0], 1);
   } else if (t == dereference_node) {
     generate_expr(node_child[expr][0]);
+    if (!lvalue) {
+      printf("mov eax, [eax]\n");
+    }
+  } else if (t == struct_access_node) {
+    int left = node_child[expr][0];
+    int right = node_child[expr][1];
+    generate_expr_internal(left, 1);
+    char* name = get_symbol(right);
+    int offset = get_struct_member_offset(get_expr_type_node(left), name);
+    printf("add eax, %d\n", offset);
+    if (!lvalue) {
+      printf("mov eax, [eax]\n");
+    }
+  } else if (t == struct_ptr_access_node) {
+    int left = node_child[expr][0];
+    int right = node_child[expr][1];
+    generate_expr(left);
+    char* name = get_symbol(right);
+    int left_type = get_expr_type_node(left);
+    check(node_type[left_type] == ptr_type_node, "-> only applys to struct ptr.");
+    int offset = get_struct_member_offset(node_child[left_type][0], name);
+    printf("add eax, %d\n", offset);
     if (!lvalue) {
       printf("mov eax, [eax]\n");
     }
