@@ -1,14 +1,9 @@
-void tokenize();
-int parse();
-void init_tokenizer();
-void init_parser();
-int print_ast();
+#include "tokenizer.h"
+#include "parser.h"
 
 int main() {
   init_tokenizer();
-  tokenize();
   init_parser();
-  int ast = parse();
-  print_ast(ast);
+  print_ast(parse(tokenize()));
   return 0;
 }

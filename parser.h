@@ -2,6 +2,7 @@
 #define __PARSER_H__
 
 #include "base.h"
+#include "tokenizer.h"
 
 #define MAX_NODE_NUM 10000
 
@@ -82,10 +83,12 @@ extern int* node_child_num;
 extern int* node_child_cap;
 extern char** node_payload;
 
-int parse();
 void init_parser();
+int parse(struct List* tokens);
 
 int new_node();
 void append_child(int p, int c);
+
+void print_ast(int root);
 
 #endif

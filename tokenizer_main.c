@@ -2,11 +2,10 @@
 
 int main() {
   init_tokenizer();
-  tokenize();
-  int i = 0;
-  while (i < token_num) {
-    printf("%s\t%s\n", token_type_str[token_type[i]], token[i]);
-    i++;
+  struct List* tokens = tokenize(0);
+  for (int i = 0; i < list_size(tokens); i++) {
+    struct Token* token = list_get(tokens, i);
+    printf("%s\t%s\n", token_type_str[token->type], token->s);
   }
   return 0;
 }

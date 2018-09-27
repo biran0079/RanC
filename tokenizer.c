@@ -1,9 +1,6 @@
 #include "tokenizer.h"
 
 char cur_char = 0;
-int* token_type;
-char** token;
-int token_num = 0;
 
 char* buffer_token;
 int buffer_len = 0;
@@ -12,8 +9,6 @@ int buffer_token_type;
 char** token_type_str;
 
 void init_tokenizer() {
-  token_type = malloc(MAX_TOKEN_NUM * WORD_SIZE);
-  token = malloc(MAX_TOKEN_NUM * WORD_SIZE);
   buffer_token = malloc(MAX_TOKEN_LEN + 1);
   token_type_str = malloc(token_type_num * WORD_SIZE);
   token_type_str[int_token] = "int";
@@ -85,7 +80,7 @@ void read_single_token() {
       break;
     }
   }
-  if (is_letter(peek_char())) {
+  if (is_letter(peek_char()) || peek_char() == '_') {
     while (is_letter(peek_char()) 
         || is_digit(peek_char()) 
         || peek_char() == '_') {
@@ -186,15 +181,20 @@ void read_single_token() {
   append_char(0);
 }
 
+struct Token* new_token(enum TokenType type, char* s) {
+  struct Token* res = malloc(sizeof(struct Token));
+  res->type = type;
+  res->s = s;
+  return res;
+}
 
-void tokenize() {
-  int last_token_type = -1;
-  while (last_token_type != eof_token) {
+struct List* tokenize() {
+  struct List* tokens = new_list();
+  do {
     read_single_token();
-    token[token_num] = strdup(buffer_token);
-    token_type[token_num] = buffer_token_type;
-    token_num++;
-    check(token_num <= MAX_TOKEN_NUM, "too many tokens\n");
-    last_token_type = buffer_token_type;
-  }
+    if (buffer_token_type != comment_token) {
+      list_add(tokens, new_token(buffer_token_type, strdup(buffer_token)));
+    }
+  } while (buffer_token_type != eof_token);
+  return tokens;
 }

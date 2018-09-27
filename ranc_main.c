@@ -2,9 +2,8 @@
 
 int main() {
   init_tokenizer();
-  tokenize();
   init_parser();
-  int ast = parse();
+  int ast = parse(tokenize());
   init_codegen();
   generate_code(ast);
   return 0;

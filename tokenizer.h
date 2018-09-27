@@ -2,8 +2,8 @@
 #define __TOKENIZER_H__
 
 #include "base.h"
+#include "list.h"
 
-#define MAX_TOKEN_NUM 100000
 #define MAX_TOKEN_LEN 1023
 #define EOF -1
 
@@ -19,12 +19,16 @@ enum TokenType {
   token_type_num,
 };
 
-void tokenize();
+struct Token {
+  enum TokenType type;
+  char* s;
+};
+
+struct Token* new_token(enum TokenType type, char* s);
+
+struct List* tokenize();
 void init_tokenizer();
 
-extern int* token_type;
-extern char** token;
-extern int token_num;
 extern char** token_type_str;
 
 #endif
