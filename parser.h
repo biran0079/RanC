@@ -66,6 +66,8 @@ enum NodeType {
   sizeof_node,
   address_of_node,
   dereference_node,
+  struct_access_node,
+  struct_ptr_access_node,
 
   node_type_num,
 };

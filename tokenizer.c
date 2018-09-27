@@ -164,12 +164,14 @@ void read_single_token() {
     } else {
       buffer_token_type = operator_token;
     }
-  } else if (strchr("+-*%,?:", peek_char())) {
+  } else if (strchr("+-*%,?:.", peek_char())) {
     char c = peek_char();
     eat_char();
     if ((c == '+' || c == '-') && peek_char() == c) {
       eat_char();
     } else if ((c == '+' || c == '-' || c == '*') && peek_char() == '=') {
+      eat_char();
+    } else if (c == '-' && peek_char() == '>') {
       eat_char();
     }
     buffer_token_type = operator_token;

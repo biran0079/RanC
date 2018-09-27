@@ -78,6 +78,8 @@ void init_parser() {
   node_type_str[sizeof_node] = "sizeof";
   node_type_str[address_of_node] = "address_of";
   node_type_str[dereference_node] = "dereference";
+  node_type_str[struct_access_node] = "struct_access";
+  node_type_str[struct_ptr_access_node] = "struct_ptr_access";
 }
 
 int new_node(int type) {
@@ -273,6 +275,21 @@ int parse_expr0() {
       t = res;
       res = new_node(dec_suffix_node);
       append_child(res, t);
+    }
+  }
+  while (1) {
+    if (matche_token("->")) {
+      int t = new_node(struct_ptr_access_node);
+      append_child(t, res);
+      append_child(t, parse_object());
+      res = t;
+    } else if (matche_token(".")) {
+      int t = new_node(struct_access_node);
+      append_child(t, res);
+      append_child(t, parse_object());
+      res = t;
+    } else {
+      break;
     }
   }
   return res;
