@@ -69,17 +69,20 @@ void init_parser() {
   node_type_str[ternary_condition_node] = "?:";
   node_type_str[enum_node] = "enum";
   node_type_str[enum_value_node] = "enum_value";
-  node_type_str[ptr_type_node] = "ptr_type";
-  node_type_str[int_type_node] = "int_type";
-  node_type_str[char_type_node] = "char_type";
-  node_type_str[void_type_node] = "void_type";
-  node_type_str[function_type_node] = "function_type";
   node_type_str[param_node] = "param";
   node_type_str[sizeof_node] = "sizeof";
   node_type_str[address_of_node] = "address_of";
   node_type_str[dereference_node] = "dereference";
   node_type_str[struct_access_node] = "struct_access";
   node_type_str[struct_ptr_access_node] = "struct_ptr_access";
+  node_type_str[struct_node] = "struct";
+
+  node_type_str[ptr_type_node] = "ptr_type";
+  node_type_str[int_type_node] = "int_type";
+  node_type_str[char_type_node] = "char_type";
+  node_type_str[void_type_node] = "void_type";
+  node_type_str[function_type_node] = "function_type";
+  node_type_str[struct_type_node] = "struct_type";
 }
 
 int new_node(int type) {
@@ -121,7 +124,8 @@ void append_child(int par, int child) {
 }
 
 int is_base_type(char* s) {
-  return !strcmp(s, "char") || !strcmp(s, "int") || !strcmp(s, "void") || !strcmp(s, "enum");
+  return !strcmp(s, "char") || !strcmp(s, "int") || !strcmp(s, "void") 
+      || !strcmp(s, "enum") || !strcmp(s, "struct");
 }
 
 void skip_comment_tokens() {
@@ -132,6 +136,10 @@ void skip_comment_tokens() {
 
 char* peek_token() {
   return token[next_token_idx];
+}
+
+char* look_ahead(int n) {
+  return token[next_token_idx + n];
 }
 
 int peek_token_type() {
@@ -159,6 +167,10 @@ int parse_type() {
   int res;
   if (matche_token("enum")) {
     res = new_node(enum_type_node);
+    append_child(res, new_symbol_node(peek_token()));
+    inc_next_token_idx();
+  } else if (matche_token("struct")) {
+    res = new_node(struct_type_node);
     append_child(res, new_symbol_node(peek_token()));
     inc_next_token_idx();
   } else if (matche_token("int")) {
@@ -613,15 +625,16 @@ int parse_params() {
 }
 
 int parse_decl() {
-  int type_node;
   int extern_decl = 0;
   if (matche_token("extern")) {
     extern_decl = 1;
   }
-  if (matche_token("enum")) {
+  if (!strcmp(peek_token(), "enum") && !strcmp(look_ahead(2), "{")) {
+    // enum def
+    inc_next_token_idx(); // skip "enum"
     int res = new_node(enum_node);
     append_child(res, new_symbol_node(peek_token()));
-    inc_next_token_idx();
+    inc_next_token_idx(); // skip enum name
     check_and_ignore_token("{");
     while (!matche_token("}")) {
       int value = new_node(enum_value_node);
@@ -639,9 +652,22 @@ int parse_decl() {
     }
     check_and_ignore_token(";");
     return res;
-  } else {
-    type_node = parse_type();
-  }
+  } else if (!strcmp(peek_token(), "struct") && !strcmp(look_ahead(2), "{")) {
+    // struct def
+    inc_next_token_idx(); // skip "struct"
+    int res = new_node(struct_node);
+    append_child(res, new_symbol_node(peek_token()));
+    inc_next_token_idx(); // skip struct name
+    check_and_ignore_token("{");
+    while (!matche_token("}")) {
+      int decl = parse_decl();
+      check(node_type[decl] == var_decl_node, "only variable delaration is allowed in struct");
+      append_child(res, decl);
+    }
+    check_and_ignore_token(";");
+    return res;
+  } 
+  int type_node = parse_type();
   int res;
   char* name = peek_token();
   inc_next_token_idx();

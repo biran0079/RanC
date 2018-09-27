@@ -1,5 +1,8 @@
 #include "codegen_x86.h"
 
+int* struct_def_node;
+int struct_def_num;
+
 int* global_var_node;
 int global_var_num;
 
@@ -46,6 +49,21 @@ int get_int(int cur) {
 char* get_string(int cur) {
   check(node_type[cur] == string_node, "get_string");
   return node_payload[cur];
+}
+
+void register_struct_def(int node) {
+  struct_def_node[struct_def_num++] = node;
+  check(struct_def_num <= MAX_STRUCT_DEF_NUM, "too many struct defs");
+}
+
+int lookup_struct_def_idx(char* s) {
+  for (int i = 0; i < struct_def_num; i++) {
+    char* name = get_symbol(node_child[struct_def_node[i]][0]);
+    if (!strcmp(name, s)) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 void register_global_var(int node) {
@@ -165,7 +183,18 @@ int size_of_type(int type_node) {
     return WORD_SIZE;
   } else if (t == char_type_node || t == void_type_node) {
     return 1;
-  } 
+  } else if (t == struct_type_node) {
+    char* name = get_symbol(node_child[type_node][0]);
+    int idx = lookup_struct_def_idx(name);
+    check(idx >= 0, "unknown struct");
+    int node = struct_def_node[idx];
+    int res = 0;
+    for (int i = 1; i < node_child_num[node]; i++) {
+      int decl = node_child[node][i];
+      res += max(WORD_SIZE, size_of_type(node_child[decl][0]));
+    }
+    return res;
+  }
   check(0, "unknown type node");
 }
 
@@ -249,7 +278,8 @@ int is_type_node(int expr) {
       || t == char_type_node
       || t == void_type_node
       || t == enum_type_node
-      || t == function_type_node;
+      || t == function_type_node
+      || t == struct_type_node;
 }
 
 void generate_expr_internal(int expr, int lvalue) {
@@ -673,6 +703,8 @@ void generate_code(int root) {
         }
         register_enum(key, value++);
       }
+    } else if (node_type[cur] == struct_node) {
+      register_struct_def(cur);
     }
   }
 }
@@ -687,4 +719,6 @@ void init_codegen() {
   function_num = 0;
   global_var_node = malloc(MAX_GLOBAL_VARS * WORD_SIZE);
   global_var_num = 0;
+  struct_def_node = malloc(MAX_STRUCT_DEF_NUM * WORD_SIZE);
+  struct_def_num = 0;
 }
