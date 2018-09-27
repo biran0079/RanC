@@ -14,6 +14,7 @@ int main() {
   t->c = 1;
   t->a->a = 2;
   (*t->a).b = 'x';
+  printf("%d %d %c\n", (*t).c++, (*t->a).a++, t->a->b++);
   printf("%d %d %c\n", (*t).c, (*t->a).a, t->a->b);
   return 0;
 }

@@ -237,6 +237,18 @@ int parse_object() {
       res = new_node(call_node);
       append_child(res, func);
       append_child(res, args);
+    } else if (matche_token("->")) {
+      int t = new_node(struct_ptr_access_node);
+      append_child(t, res);
+      append_child(t, new_symbol_node(peek_token()));
+      inc_next_token_idx();
+      res = t;
+    } else if (matche_token(".")) {
+      int t = new_node(struct_access_node);
+      append_child(t, res);
+      append_child(t, new_symbol_node(peek_token()));
+      inc_next_token_idx();
+      res = t;
     } else {
       break;
     }
@@ -287,21 +299,6 @@ int parse_expr0() {
       t = res;
       res = new_node(dec_suffix_node);
       append_child(res, t);
-    }
-  }
-  while (1) {
-    if (matche_token("->")) {
-      int t = new_node(struct_ptr_access_node);
-      append_child(t, res);
-      append_child(t, parse_object());
-      res = t;
-    } else if (matche_token(".")) {
-      int t = new_node(struct_access_node);
-      append_child(t, res);
-      append_child(t, parse_object());
-      res = t;
-    } else {
-      break;
     }
   }
   return res;
