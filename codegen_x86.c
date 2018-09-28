@@ -322,6 +322,14 @@ int is_type_node(struct Node* expr) {
       || t == struct_type_node;
 }
 
+int get_ptr_step_size(struct Node* expr) {
+  struct Node* type_node = get_expr_type_node(expr);
+  if (type_node->type == ptr_type_node) {
+    return size_of_type(get_child(type_node, 0));
+  }
+  return 1;
+}
+
 void generate_expr_internal(struct Node* expr, int lvalue) {
   enum NodeType t = expr->type;
   int end_label;
@@ -332,14 +340,10 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
     printf("pop ebx\n");
     printf("mov dword ptr [ebx], eax\n");
   } else if (t == add_eq_node) {
-    struct Node* type_node = get_expr_type_node(get_child(expr, 0));
-    int step = 1;
-    if (type_node->type == ptr_type_node) {
-      step = size_of_type(get_child(type_node, 0));
-    }
     generate_expr_internal(get_child(expr, 0), 1);
     printf("push eax\n");
     generate_expr(get_child(expr, 1));
+    int step = get_ptr_step_size(get_child(expr, 0));
     if (step > 1) {
       printf("imul eax, %d\n", step);
     }
@@ -350,6 +354,10 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
     generate_expr_internal(get_child(expr, 0), 1);
     printf("push eax\n");
     generate_expr(get_child(expr, 1));
+    int step = get_ptr_step_size(get_child(expr, 0));
+    if (step > 1) {
+      printf("imul eax, %d\n", step);
+    }
     printf("pop ebx\n");
     printf("sub [ebx], eax\n");
     printf("mov eax, [ebx]\n");
@@ -401,14 +409,10 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
     printf("mov eax, 0\n");
     printf("%s al\n", get_set_cmp_inst(t));
   } else if (t == add_node) {
-    struct Node* type_node = get_expr_type_node(get_child(expr, 0));
-    int step = 1;
-    if (type_node->type == ptr_type_node) {
-      step = size_of_type(get_child(type_node, 0));
-    }
     generate_expr(get_child(expr, 0));
     printf("push eax\n");
     generate_expr(get_child(expr, 1));
+    int step = get_ptr_step_size(get_child(expr, 0));
     if (step > 1) {
       printf("imul eax, %d\n", step);
     }
@@ -418,6 +422,10 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
     generate_expr(get_child(expr, 0));
     printf("push eax\n");
     generate_expr(get_child(expr, 1));
+    int step = get_ptr_step_size(get_child(expr, 0));
+    if (step > 1) {
+      printf("imul eax, %d\n", step);
+    }
     printf("pop ebx\n");
     printf("sub ebx, eax\n");
     printf("mov eax, ebx\n");
@@ -500,22 +508,24 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
     printf("add eax, 1\n");
   } else if (t == inc_prefix_node) {
     generate_expr_internal(get_child(expr, 0), 1);
-    printf("add dword ptr [eax], 1\n");
+    printf("add dword ptr [eax], %d\n", get_ptr_step_size(get_child(expr, 0)));
     printf("mov eax, dword ptr [eax]\n");
   } else if (t == dec_prefix_node) {
     generate_expr_internal(get_child(expr, 0), 1);
-    printf("sub dword ptr [eax], 1\n");
+    printf("sub dword ptr [eax], %d\n", get_ptr_step_size(get_child(expr, 0)));
     printf("mov eax, dword ptr [eax]\n");
   } else if (t == inc_suffix_node) {
+    int step = get_ptr_step_size(get_child(expr, 0));
     generate_expr_internal(get_child(expr, 0), 1);
-    printf("add dword ptr [eax], 1\n");
+    printf("add dword ptr [eax], %d\n", step);
     printf("mov eax, dword ptr [eax]\n");
-    printf("sub eax, 1\n");
+    printf("sub eax, %d\n", step);
   } else if (t == dec_suffix_node) {
+    int step = get_ptr_step_size(get_child(expr, 0));
     generate_expr_internal(get_child(expr, 0), 1);
-    printf("sub dword ptr [eax], 1\n");
+    printf("sub dword ptr [eax], %d\n", step);
     printf("mov eax, dword ptr [eax]\n");
-    printf("add eax, 1\n");
+    printf("add eax, %d\n", step);
   } else if (t == ternary_condition_node) {
     int snd_label = new_temp_label();
     int end_label = new_temp_label();

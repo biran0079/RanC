@@ -20,5 +20,17 @@ int main() {
   printf("%d\n", b[0]--);
   printf("%d\n", --b[0]);
   printf("%d\n", --b[0]);
+  int* c = malloc(16);
+  c[0]=123456;
+  c[1]=234567;
+  c[2]=345678;
+  c[3]=781234;
+  printf("%d\n", *c);
+  printf("%d\n", *(++c));
+  printf("%d\n", *(c++));
+  printf("%d\n", *c);
+  printf("%d\n", *(--c));
+  printf("%d\n", *(c--));
+  printf("%d\n", *c);
   return 0;
 }
