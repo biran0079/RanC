@@ -1,36 +1,30 @@
 #include "codegen_x86.h"
 
-struct StringMap* struct_def_by_name;
-
-struct StringMap* global_var_def_by_name;
-
 struct LocalVar {
   struct Node* def;
   int offset; // offset in bytes from the first local var in stack
 };
 
-struct StringMap* local_vars;
-
 struct Enum {
   int value;
 };
-
-struct StringMap* enums;
-
-char** function_name;
-struct Node** function_node;
-int function_num;
-
-int in_function;
 
 struct FunctionParam {
   struct Node* def;
   int offset; // offset in bytes from the first local var in stack
 };
 
+struct StringMap* struct_defs;
+struct StringMap* global_var_defs;
+struct StringMap* functions;
+struct StringMap* local_vars;
+struct StringMap* enums;
 // Params node for current function.
 // Used for param look up when generating code for function body.
 struct StringMap* function_params; 
+
+int in_function;
+
 // Label for function epilog. Needed for return statement.
 int return_label;
 
@@ -62,36 +56,29 @@ char* get_string(struct Node* cur) {
 
 void register_struct_def(struct Node* node) {
   char* struct_name = get_symbol(get_child(node, 0));
-  string_map_put(struct_def_by_name, struct_name, node);
+  string_map_put(struct_defs, struct_name, node);
 }
 
 struct Node* lookup_struct_def(char* s) {
-  return string_map_get(struct_def_by_name, s);
+  return string_map_get(struct_defs, s);
 }
 
 void register_global_var(struct Node* node) {
   char* name = get_symbol(get_child(node, 1));
-  string_map_put(global_var_def_by_name, name, node);
+  string_map_put(global_var_defs, name, node);
 }
 
 struct Node* lookup_global_var_def(char* s) {
-  return string_map_get(global_var_def_by_name, s);
+  return string_map_get(global_var_defs, s);
 }
 
-int lookup_function_idx(char* s) {
-  for (int i = 0; i < function_num; i++) {
-    struct Node* fun_node = function_node[i];
-    char* name = get_symbol(get_child(fun_node, 1));
-    if (!strcmp(s, name)) {
-      return i;
-    }
-  }
-  return -1;
+struct Node* lookup_function(char* s) {
+  return string_map_get(functions, s);
 }
 
 void register_function(struct Node* node) {
-  function_node[function_num++] = node;
-  check(function_num <= MAX_FUNCTION_NUM, "too many functions");
+  char* name = get_symbol(get_child(node, 1));
+  string_map_put(functions, name, node);
 }
 
 void register_enum(char* s, int n) {
@@ -203,11 +190,11 @@ struct Node* get_symbol_type_node(char* s) {
   if (param) {
     return get_child(param->def, 0);
   }
-  int idx = lookup_function_idx(s);
-  if (idx >= 0) {
+  struct Node* function = lookup_function(s);
+  if (function) {
     struct Node* res = new_node(function_type_node);
-    append_child(res, get_child(function_node[idx], 0));
-    append_child(res, get_child(function_node[idx], 2));
+    append_child(res, get_child(function, 0));
+    append_child(res, get_child(function, 2));
     return res;
   }
   if (lookup_enum(s)) {
@@ -776,11 +763,10 @@ void generate_code(struct Node* root) {
 }
 
 void init_codegen() {
-  function_node = malloc(MAX_FUNCTION_NUM * WORD_SIZE);
-  function_num = 0;
+  functions = new_string_map();
   enums = new_string_map();
   local_vars = new_string_map();
-  global_var_def_by_name = new_string_map();
-  struct_def_by_name = new_string_map();
+  global_var_defs = new_string_map();
+  struct_defs = new_string_map();
   function_params = new_string_map();
 }
