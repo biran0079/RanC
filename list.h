@@ -17,4 +17,6 @@ void* list_add(struct List* lst, void* v);
 
 void free_list(struct List* lst);
 
+void clear_list(struct List* lst);
+
 #endif

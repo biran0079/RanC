@@ -30,3 +30,7 @@ void free_list(struct List* lst) {
   free(lst->arr);
   free(lst);
 }
+
+void clear_list(struct List* lst) {
+  lst->size = 0;
+}

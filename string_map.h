@@ -23,4 +23,8 @@ void string_map_put(struct StringMap* map, char* k, void* v);
 
 void* string_map_get(struct StringMap* map, char* k);
 
+void string_map_clear(struct StringMap* map);
+
+int string_map_size(struct StringMap* map);
+
 #endif

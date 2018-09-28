@@ -4,8 +4,12 @@ struct StringMap* struct_def_by_name;
 
 struct StringMap* global_var_def_by_name;
 
-struct Node** local_var_node;
-int local_var_num;
+struct LocalVar {
+  struct Node* def;
+  int offset; // offset in bytes from the first local var in stack
+};
+
+struct StringMap* local_vars;
 
 char** enum_key;
 int* enum_value;
@@ -99,23 +103,21 @@ int lookup_enum_idx(char* s) {
 }
 
 void register_local_var(struct Node* node) {
-  local_var_node[local_var_num] = node;
-  local_var_num++;
-  check(local_var_num <= MAX_LOCAL_VARS, "too many local vars");
+  char* name = get_symbol(get_child(node, 1));
+  if (!string_map_contains(local_vars, name)) {
+    // TODO disallow defining same var twice once scoping is supported
+    struct LocalVar* v = malloc(sizeof(struct LocalVar));
+    v->def = node;
+    v->offset = WORD_SIZE * string_map_size(local_vars);
+    string_map_put(local_vars, name, v);
+  }
 }
 
-int lookup_local_var(char* s) {
+struct LocalVar* lookup_local_var(char* s) {
   if (!in_function) {
-    return -1;
+    return 0;
   }
-  for (int i = 0; i < local_var_num; i++) {
-    struct Node* node = local_var_node[i];
-    char* name = get_symbol(get_child(node, 1));
-    if (!strcmp(s, name)) {
-      return i;
-    }
-  }
-  return -1;
+  return string_map_get(local_vars, s);
 }
 
 int lookup_param(char* s) {
@@ -184,11 +186,11 @@ int size_of_type(struct Node* type_node) {
 }
 
 struct Node* get_symbol_type_node(char* s) {
-  int idx = lookup_local_var(s);
-  if (idx >= 0) {
-    return get_child(local_var_node[idx], 0);
+  struct LocalVar* local = lookup_local_var(s);
+  if (local) {
+    return get_child(local->def, 0);
   }
-  idx = lookup_param(s);
+  int idx = lookup_param(s);
   if (idx >= 0) {
     return get_child(get_child(function_params, idx), 0);
   }
@@ -441,7 +443,7 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
     printf("mov eax, offset _%d\n", string_label);
   } else if(t == symbol_node) {
     char* name = get_symbol(expr);
-    int local_index = lookup_local_var(name);
+    struct LocalVar* local = lookup_local_var(name);
     int param_index = lookup_param(name);
     int enum_index = lookup_enum_idx(name);
     char* op;
@@ -450,8 +452,8 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
     } else {
       op = "mov";
     }
-    if (local_index >= 0) {
-      printf("%s eax, [ebp-%d]\n", op, (1 + local_index) * WORD_SIZE);
+    if (local) {
+      printf("%s eax, [ebp-%d]\n", op, WORD_SIZE + local->offset);
     } else if (param_index >= 0) {
       printf("%s eax, [ebp+%d]\n", op, (2 + param_index) * WORD_SIZE);
     } else if (enum_index >= 0) {
@@ -664,10 +666,10 @@ void generate_stmt(struct Node* stmt) {
   } else if (t == continue_node) {
     printf("jmp _%d\n", continue_label);
   } else if (t == var_init_node) {
-    int index = lookup_local_var(get_symbol(get_child(stmt, 1)));
-    check(index >= 0, "local var not found");
+    struct LocalVar* local = lookup_local_var(get_symbol(get_child(stmt, 1)));
+    check(local, "local var not found");
     generate_expr(get_child(stmt, 2));
-    printf("mov dword ptr [ebp-%d], eax\n", (1 + index) * WORD_SIZE);
+    printf("mov dword ptr [ebp-%d], eax\n", WORD_SIZE + local->offset);
   } else if (t == noop_node || t == var_decl_node) {
     // do nothing
   } else {
@@ -727,7 +729,7 @@ void generate_code(struct Node* root) {
       function_params = get_child(cur, 2);
       return_label = new_temp_label();
 
-      local_var_num = 0;
+      string_map_clear(local_vars);
       // register local vars for later look up 
       register_local_vars(stmts);
 
@@ -737,7 +739,7 @@ void generate_code(struct Node* root) {
       printf("%s:\n", name);
       printf("push ebp\n");
       printf("mov ebp, esp\n");
-      printf("sub esp, %d\n", local_var_num * WORD_SIZE);
+      printf("sub esp, %d\n", string_map_size(local_vars) * WORD_SIZE);
 
       generate_stmts(stmts);
       // function epilog
@@ -765,13 +767,12 @@ void generate_code(struct Node* root) {
 }
 
 void init_codegen() {
-  local_var_node = malloc(MAX_LOCAL_VARS * WORD_SIZE);
-  local_var_num = 0;
   enum_key = malloc(MAX_ENUM_VALUES * WORD_SIZE);
   enum_value = malloc(MAX_ENUM_VALUES * WORD_SIZE);
   enum_num = 0;
   function_node = malloc(MAX_FUNCTION_NUM * WORD_SIZE);
   function_num = 0;
+  local_vars = new_string_map();
   global_var_def_by_name = new_string_map();
   struct_def_by_name = new_string_map();
 }

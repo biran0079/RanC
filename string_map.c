@@ -25,7 +25,6 @@ int _string_hash(char* s) {
     if (!c) {
       break;
     }
-    printf("#%d %c!\n", c, c);
     h *= 131;
     h += c;
     s++;
@@ -103,3 +102,18 @@ void* string_map_get(struct StringMap* map, char* k) {
   return e ? e->v : 0;
 }
 
+void string_map_clear(struct StringMap* map) {
+  for (int i = 0; i < list_size(map->buckets); i++) {
+    struct List* bucket = list_get(map->buckets, i);
+    for (int j = 0; j < list_size(bucket); j++) {
+      struct Entry* e = list_get(bucket, j);
+      free(e); 
+    }
+    clear_list(bucket);
+  }
+  map->size = 0;
+}
+
+int string_map_size(struct StringMap* map) {
+  return map->size;
+}
