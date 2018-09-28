@@ -23,9 +23,14 @@ int function_num;
 
 int in_function;
 
+struct FunctionParam {
+  struct Node* def;
+  int offset; // offset in bytes from the first local var in stack
+};
+
 // Params node for current function.
 // Used for param look up when generating code for function body.
-struct Node* function_params; 
+struct StringMap* function_params; 
 // Label for function epilog. Needed for return statement.
 int return_label;
 
@@ -117,17 +122,24 @@ struct LocalVar* lookup_local_var(char* s) {
   return string_map_get(local_vars, s);
 }
 
-int lookup_param(char* s) {
+void register_function_params(struct Node* fun) {
+  struct Node* params = get_child(fun, 2);
+  for (int i = 0; i < child_num(params); i++) {
+    struct Node* def = get_child(params, i);
+    char* name = get_symbol(get_child(def, 1));
+    struct FunctionParam* value = malloc(sizeof(struct FunctionParam));
+    value->def = def;
+    value->offset = i * WORD_SIZE;
+    check(!string_map_get(function_params, name), "duplicate function param name");
+    string_map_put(function_params, name, value);
+  }
+}
+
+struct FunctionParam* lookup_function_param(char* s) {
   if (!in_function) {
-    return -1;
+    return 0;
   }
-  for (int i = 0; i < child_num(function_params); i++) {
-    struct Node* param_node = get_child(function_params, i);
-    if (!strcmp(s, get_symbol(get_child(param_node, 1)))) {
-      return i;
-    }
-  }
-  return -1;
+  return string_map_get(function_params, s);
 }
 
 // search for all var_decl_node and var_init_node in subtree
@@ -187,11 +199,11 @@ struct Node* get_symbol_type_node(char* s) {
   if (local) {
     return get_child(local->def, 0);
   }
-  int idx = lookup_param(s);
-  if (idx >= 0) {
-    return get_child(get_child(function_params, idx), 0);
+  struct FunctionParam* param = lookup_function_param(s);
+  if (param) {
+    return get_child(param->def, 0);
   }
-  idx = lookup_function_idx(s);
+  int idx = lookup_function_idx(s);
   if (idx >= 0) {
     struct Node* res = new_node(function_type_node);
     append_child(res, get_child(function_node[idx], 0));
@@ -440,7 +452,7 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
   } else if(t == symbol_node) {
     char* name = get_symbol(expr);
     struct LocalVar* local = lookup_local_var(name);
-    int param_index = lookup_param(name);
+    struct FunctionParam* param = lookup_function_param(name);
     struct Enum* enum_entry = lookup_enum(name);
     char* op;
     if (lvalue) {
@@ -450,8 +462,8 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
     }
     if (local) {
       printf("%s eax, [ebp-%d]\n", op, WORD_SIZE + local->offset);
-    } else if (param_index >= 0) {
-      printf("%s eax, [ebp+%d]\n", op, (2 + param_index) * WORD_SIZE);
+    } else if (param) {
+      printf("%s eax, [ebp+%d]\n", op, 2 * WORD_SIZE + param->offset);
     } else if (enum_entry) {
       check(!lvalue, "enum cannot be lvalue\n");
       printf("%s eax, %d\n", op, enum_entry->value);
@@ -722,7 +734,7 @@ void generate_code(struct Node* root) {
     if (cur->type == function_impl_node) {
       char* name = get_symbol(get_child(cur, 1));
       struct Node* stmts = get_child(cur, 3);
-      function_params = get_child(cur, 2);
+      register_function_params(cur);
       return_label = new_temp_label();
 
       string_map_clear(local_vars);
@@ -745,6 +757,7 @@ void generate_code(struct Node* root) {
       printf("ret\n");
 
       in_function = 0;
+      string_map_clear(function_params);
     } else if (cur->type == enum_node) {
       int value = 0;
       // skip enum name
@@ -769,4 +782,5 @@ void init_codegen() {
   local_vars = new_string_map();
   global_var_def_by_name = new_string_map();
   struct_def_by_name = new_string_map();
+  function_params = new_string_map();
 }
