@@ -1,10 +1,8 @@
 #include "codegen_x86.h"
 
-struct Node** struct_def_node;
-int struct_def_num;
+struct StringMap* struct_def_by_name;
 
-struct Node** global_var_node;
-int global_var_num;
+struct StringMap* global_var_def_by_name;
 
 struct Node** local_var_node;
 int local_var_num;
@@ -52,33 +50,21 @@ char* get_string(struct Node* cur) {
 }
 
 void register_struct_def(struct Node* node) {
-  struct_def_node[struct_def_num++] = node;
-  check(struct_def_num <= MAX_STRUCT_DEF_NUM, "too many struct defs");
+  char* struct_name = get_symbol(get_child(node, 0));
+  string_map_put(struct_def_by_name, struct_name, node);
 }
 
-int lookup_struct_def_idx(char* s) {
-  for (int i = 0; i < struct_def_num; i++) {
-    char* name = get_symbol(get_child(struct_def_node[i], 0));
-    if (!strcmp(name, s)) {
-      return i;
-    }
-  }
-  return -1;
+struct Node* lookup_struct_def(char* s) {
+  return string_map_get(struct_def_by_name, s);
 }
 
 void register_global_var(struct Node* node) {
-  global_var_node[global_var_num++] = node;
-  check(global_var_num <= MAX_GLOBAL_VARS, "too many global vars");
+  char* name = get_symbol(get_child(node, 1));
+  string_map_put(global_var_def_by_name, name, node);
 }
 
-int lookup_global_var(char* s) {
-  for (int i = 0; i < global_var_num; i++) {
-    struct Node* node = global_var_node[i];
-    if (!strcmp(s, get_symbol(get_child(node, 1)))) {
-      return i;
-    }
-  }
-  return -1;
+struct Node* lookup_global_var_def(char* s) {
+  return string_map_get(global_var_def_by_name, s);
 }
 
 int lookup_function_idx(char* s) {
@@ -185,9 +171,8 @@ int size_of_type(struct Node* type_node) {
     return 1;
   } else if (t == struct_type_node) {
     char* name = get_symbol(get_child(type_node, 0));
-    int idx = lookup_struct_def_idx(name);
-    check(idx >= 0, "unknown struct");
-    struct Node* node = struct_def_node[idx];
+    struct Node* node = lookup_struct_def(name);
+    check(node, "unknown struct");
     int res = 0;
     for (int i = 1; i < child_num(node); i++) {
       struct Node* decl = get_child(node, i);
@@ -218,18 +203,17 @@ struct Node* get_symbol_type_node(char* s) {
   if (idx >= 0) {
     return new_node(enum_type_node);
   }
-  idx = lookup_global_var(s);
-  if (idx >= 0) {
-    return get_child(global_var_node[idx], 0);
+  struct Node* node = lookup_global_var_def(s);
+  if (node) {
+    return get_child(node, 0);
   }
   return 0;
 }
 
 struct Node* lookup_struct_member_type_node(struct Node* struct_type, char* name) {
   check(struct_type->type == struct_type_node, "lookup_struct_member_type_node");
-  int idx = lookup_struct_def_idx(get_symbol(get_child(struct_type, 0)));
-  check(idx >= 0, "struct def not found");
-  struct Node* def = struct_def_node[idx];
+  struct Node* def = lookup_struct_def(get_symbol(get_child(struct_type, 0)));
+  check(def, "struct def not found");
   for (int i = 1; i < child_num(def); i++) {
     struct Node* t = get_child(def, i);
     if (!strcmp(name, get_symbol(get_child(t, 1)))) {
@@ -241,9 +225,8 @@ struct Node* lookup_struct_member_type_node(struct Node* struct_type, char* name
 
 int get_struct_member_offset(struct Node* struct_type, char* name) {
   check(struct_type->type == struct_type_node, "get_struct_member_offset");
-  int idx = lookup_struct_def_idx(get_symbol(get_child(struct_type, 0)));
-  check(idx >= 0, "struct def not found");
-  struct Node* def = struct_def_node[idx];
+  struct Node* def = lookup_struct_def(get_symbol(get_child(struct_type, 0)));
+  check(def, "struct def not found");
   int res = 0;
   for (int i = 1; i < child_num(def); i++) {
     struct Node* t = get_child(def, i);
@@ -789,8 +772,6 @@ void init_codegen() {
   enum_num = 0;
   function_node = malloc(MAX_FUNCTION_NUM * WORD_SIZE);
   function_num = 0;
-  global_var_node = malloc(MAX_GLOBAL_VARS * WORD_SIZE);
-  global_var_num = 0;
-  struct_def_node = malloc(MAX_STRUCT_DEF_NUM * WORD_SIZE);
-  struct_def_num = 0;
+  global_var_def_by_name = new_string_map();
+  struct_def_by_name = new_string_map();
 }
