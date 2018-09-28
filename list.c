@@ -25,3 +25,8 @@ void* list_add(struct List* lst, void* v) {
   }
   lst->arr[lst->size++] = v;
 }
+
+void free_list(struct List* lst) {
+  free(lst->arr);
+  free(lst);
+}
