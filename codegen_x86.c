@@ -11,9 +11,11 @@ struct LocalVar {
 
 struct StringMap* local_vars;
 
-char** enum_key;
-int* enum_value;
-int enum_num;
+struct Enum {
+  int value;
+};
+
+struct StringMap* enums;
 
 char** function_name;
 struct Node** function_node;
@@ -88,18 +90,13 @@ void register_function(struct Node* node) {
 }
 
 void register_enum(char* s, int n) {
-  int i = enum_num++;
-  enum_key[i] = s;
-  enum_value[i] = n;
+  struct Enum* e = malloc(sizeof(struct Enum));
+  e->value = n;
+  string_map_put(enums, s, e);
 }
 
-int lookup_enum_idx(char* s) {
-  for (int i = 0; i < enum_num; i++) {
-    if (!strcmp(s, enum_key[i])) {
-      return i;
-    }
-  }
-  return -1;
+struct Enum* lookup_enum(char* s) {
+  return string_map_get(enums, s);
 }
 
 void register_local_var(struct Node* node) {
@@ -201,8 +198,7 @@ struct Node* get_symbol_type_node(char* s) {
     append_child(res, get_child(function_node[idx], 2));
     return res;
   }
-  idx = lookup_enum_idx(s);
-  if (idx >= 0) {
+  if (lookup_enum(s)) {
     return new_node(enum_type_node);
   }
   struct Node* node = lookup_global_var_def(s);
@@ -445,7 +441,7 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
     char* name = get_symbol(expr);
     struct LocalVar* local = lookup_local_var(name);
     int param_index = lookup_param(name);
-    int enum_index = lookup_enum_idx(name);
+    struct Enum* enum_entry = lookup_enum(name);
     char* op;
     if (lvalue) {
       op = "lea";
@@ -456,9 +452,9 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       printf("%s eax, [ebp-%d]\n", op, WORD_SIZE + local->offset);
     } else if (param_index >= 0) {
       printf("%s eax, [ebp+%d]\n", op, (2 + param_index) * WORD_SIZE);
-    } else if (enum_index >= 0) {
+    } else if (enum_entry) {
       check(!lvalue, "enum cannot be lvalue\n");
-      printf("%s eax, %d\n", op, enum_value[enum_index]);
+      printf("%s eax, %d\n", op, enum_entry->value);
     } else {
       printf("%s eax, [%s]\n", op, name);
     }
@@ -767,11 +763,9 @@ void generate_code(struct Node* root) {
 }
 
 void init_codegen() {
-  enum_key = malloc(MAX_ENUM_VALUES * WORD_SIZE);
-  enum_value = malloc(MAX_ENUM_VALUES * WORD_SIZE);
-  enum_num = 0;
   function_node = malloc(MAX_FUNCTION_NUM * WORD_SIZE);
   function_num = 0;
+  enums = new_string_map();
   local_vars = new_string_map();
   global_var_def_by_name = new_string_map();
   struct_def_by_name = new_string_map();
