@@ -4,6 +4,7 @@
 #include "tokenizer.h"
 #include "parser.h"
 #include "string_map.h"
+#include "ast_processor.h"
 
 #define MAX_LOCAL_VARS 100
 #define MAX_GLOBAL_VARS 10000
@@ -12,6 +13,6 @@
 #define MAX_STRUCT_DEF_NUM 10000
 
 void init_codegen();
-void generate_code(struct Node* ast);
+void generate_code(struct ProcessedAst* input);
 
 #endif

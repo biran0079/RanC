@@ -96,6 +96,21 @@ struct Node* new_node_with_payload(enum NodeType type, char* s) {
   return res;
 }
 
+char* get_symbol(struct Node* cur) {
+  check(cur->type == symbol_node, "get_symbol");
+  return cur->payload;
+}
+
+int get_int(struct Node* cur) {
+  check(cur->type == int_node, "get_int");
+  return atoi(cur->payload);
+}
+
+char* get_string(struct Node* cur) {
+  check(cur->type == string_node, "get_string");
+  return cur->payload;
+}
+
 int child_num(struct Node* root) {
   return list_size(root->child);
 }

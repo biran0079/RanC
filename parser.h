@@ -104,5 +104,10 @@ void append_child(struct Node* p, struct Node* c);
 
 void print_ast(struct Node* root);
 
+char* get_symbol(struct Node* cur);
+
+int get_int(struct Node* cur);
+
+char* get_string(struct Node* cur);
 
 #endif

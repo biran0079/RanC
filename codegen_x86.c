@@ -1,29 +1,10 @@
 #include "codegen_x86.h"
+#include "ast_processor.h"
+#include "string_map.h"
 
-struct LocalVar {
-  struct Node* def;
-  int offset; // offset in bytes from the first local var in stack
-};
-
-struct Enum {
-  int value;
-};
-
-struct FunctionParam {
-  struct Node* def;
-  int offset; // offset in bytes from the first local var in stack
-};
-
-struct StringMap* struct_defs;
-struct StringMap* global_var_defs;
-struct StringMap* functions;
-struct StringMap* local_vars;
-struct StringMap* enums;
-// Params node for current function.
-// Used for param look up when generating code for function body.
-struct StringMap* function_params; 
-
-int in_function;
+// current LST when generating code for function body
+struct LocalSymbolTable* lst;
+struct GlobalSymbolTable* gst;
 
 // Label for function epilog. Needed for return statement.
 int return_label;
@@ -35,118 +16,15 @@ int continue_label;
 
 int tmp_label_count = 0;
 
-int new_temp_label() {
-  return tmp_label_count++;
-}
-
-// reserve n consecutive tmp labels, return the first one 
+// reserve n consecutive tmp labels, return the first one
 int reserve_tmp_labels(int n) {
   int res = tmp_label_count;
   tmp_label_count += n;
   return res;
 }
 
-char* get_symbol(struct Node* cur) {
-  check(cur->type == symbol_node, "get_symbol");
-  return cur->payload;
-}
-
-int get_int(struct Node* cur) {
-  check(cur->type == int_node, "get_int");
-  return atoi(cur->payload);
-}
-
-char* get_string(struct Node* cur) {
-  check(cur->type == string_node, "get_string");
-  return cur->payload;
-}
-
-void register_struct_def(struct Node* node) {
-  char* struct_name = get_symbol(get_child(node, 0));
-  string_map_put(struct_defs, struct_name, node);
-}
-
-struct Node* lookup_struct_def(char* s) {
-  return string_map_get(struct_defs, s);
-}
-
-void register_global_var(struct Node* node) {
-  char* name = get_symbol(get_child(node, 1));
-  string_map_put(global_var_defs, name, node);
-}
-
-struct Node* lookup_global_var_def(char* s) {
-  return string_map_get(global_var_defs, s);
-}
-
-struct Node* lookup_function(char* s) {
-  return string_map_get(functions, s);
-}
-
-void register_function(struct Node* node) {
-  char* name = get_symbol(get_child(node, 1));
-  string_map_put(functions, name, node);
-}
-
-void register_enum(char* s, int n) {
-  struct Enum* e = malloc(sizeof(struct Enum));
-  e->value = n;
-  string_map_put(enums, s, e);
-}
-
-struct Enum* lookup_enum(char* s) {
-  return string_map_get(enums, s);
-}
-
-void register_local_var(struct Node* node) {
-  char* name = get_symbol(get_child(node, 1));
-  if (!string_map_contains(local_vars, name)) {
-    // TODO disallow defining same var twice once scoping is supported
-    struct LocalVar* v = malloc(sizeof(struct LocalVar));
-    v->def = node;
-    v->offset = WORD_SIZE * string_map_size(local_vars);
-    string_map_put(local_vars, name, v);
-  }
-}
-
-struct LocalVar* lookup_local_var(char* s) {
-  if (!in_function) {
-    return 0;
-  }
-  return string_map_get(local_vars, s);
-}
-
-void register_function_params(struct Node* fun) {
-  struct Node* params = get_child(fun, 2);
-  for (int i = 0; i < child_num(params); i++) {
-    struct Node* def = get_child(params, i);
-    char* name = get_symbol(get_child(def, 1));
-    struct FunctionParam* value = malloc(sizeof(struct FunctionParam));
-    value->def = def;
-    value->offset = i * WORD_SIZE;
-    check(!string_map_get(function_params, name), "duplicate function param name");
-    string_map_put(function_params, name, value);
-  }
-}
-
-struct FunctionParam* lookup_function_param(char* s) {
-  if (!in_function) {
-    return 0;
-  }
-  return string_map_get(function_params, s);
-}
-
-// search for all var_decl_node and var_init_node in subtree
-void register_local_vars(struct Node* root) {
-  for (int i = 0; i < child_num(root); i++) {
-    struct Node* cur = get_child(root, i);
-    enum NodeType t = cur->type;
-    if (t == var_decl_node || t == var_init_node) {
-      register_local_var(cur);
-    } else {
-      register_local_vars(cur);
-    }
-  }
+int new_temp_label() {
+  return reserve_tmp_labels(1);
 }
 
 char* get_set_cmp_inst(enum NodeType type) {
@@ -177,7 +55,7 @@ int size_of_type(struct Node* type_node) {
       return 1;
     case struct_type_node: {
       char* name = get_symbol(get_child(type_node, 0));
-      struct Node* node = lookup_struct_def(name);
+      struct Node* node = lookup_struct_def(gst, name);
       check(node, "unknown struct");
       int res = 0;
       for (int i = 1; i < child_num(node); i++) {
@@ -192,25 +70,25 @@ int size_of_type(struct Node* type_node) {
 }
 
 struct Node* get_symbol_type_node(char* s) {
-  struct LocalVar* local = lookup_local_var(s);
+  struct LocalVar* local = lookup_local_var(lst, s);
   if (local) {
     return get_child(local->def, 0);
   }
-  struct FunctionParam* param = lookup_function_param(s);
+  struct FunctionParam* param = lookup_function_param(lst, s);
   if (param) {
     return get_child(param->def, 0);
   }
-  struct Node* function = lookup_function(s);
+  struct Node* function = lookup_function(gst, s);
   if (function) {
     struct Node* res = new_node(function_type_node);
     append_child(res, get_child(function, 0));
     append_child(res, get_child(function, 2));
     return res;
   }
-  if (lookup_enum(s)) {
+  if (lookup_enum(gst, s)) {
     return new_node(enum_type_node);
   }
-  struct Node* node = lookup_global_var_def(s);
+  struct Node* node = lookup_global_var_def(gst, s);
   if (node) {
     return get_child(node, 0);
   }
@@ -219,7 +97,7 @@ struct Node* get_symbol_type_node(char* s) {
 
 struct Node* lookup_struct_member_type_node(struct Node* struct_type, char* name) {
   check(struct_type->type == struct_type_node, "lookup_struct_member_type_node");
-  struct Node* def = lookup_struct_def(get_symbol(get_child(struct_type, 0)));
+  struct Node* def = lookup_struct_def(gst, get_symbol(get_child(struct_type, 0)));
   check(def, "struct def not found");
   for (int i = 1; i < child_num(def); i++) {
     struct Node* t = get_child(def, i);
@@ -232,7 +110,7 @@ struct Node* lookup_struct_member_type_node(struct Node* struct_type, char* name
 
 int get_struct_member_offset(struct Node* struct_type, char* name) {
   check(struct_type->type == struct_type_node, "get_struct_member_offset");
-  struct Node* def = lookup_struct_def(get_symbol(get_child(struct_type, 0)));
+  struct Node* def = lookup_struct_def(gst, get_symbol(get_child(struct_type, 0)));
   check(def, "struct def not found");
   int res = 0;
   for (int i = 1; i < child_num(def); i++) {
@@ -517,9 +395,9 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
     } 
     case symbol_node: {
       char* name = get_symbol(expr);
-      struct LocalVar* local = lookup_local_var(name);
-      struct FunctionParam* param = lookup_function_param(name);
-      struct Enum* enum_entry = lookup_enum(name);
+      struct LocalVar* local = lookup_local_var(lst, name);
+      struct FunctionParam* param = lookup_function_param(lst, name);
+      struct Enum* enum_entry = lookup_enum(gst, name);
       char* op;
       if (lvalue) {
         op = "lea";
@@ -782,7 +660,7 @@ void generate_stmt(struct Node* stmt) {
       break;
     } 
     case var_init_node: {
-      struct LocalVar* local = lookup_local_var(get_symbol(get_child(stmt, 1)));
+      struct LocalVar* local = lookup_local_var(lst, get_symbol(get_child(stmt, 1)));
       check(local, "local var not found");
       generate_expr(get_child(stmt, 2));
       printf("mov dword ptr [ebp-%d], eax\n", WORD_SIZE + local->offset);
@@ -849,7 +727,9 @@ void generate_stmts(struct Node* stmts) {
   }
 }
 
-void generate_code(struct Node* root) {
+void generate_code(struct ProcessedAst* input) {
+  struct Node* root = input->ast;
+  gst = input->gst;
   check(root->type == prog_node, "prog_node expected");
   printf(".intel_syntax noprefix\n");
   printf(".section .data\n");
@@ -873,22 +753,14 @@ void generate_code(struct Node* root) {
                 "only integer variable initialization is allowed\n");
             int value = get_int(get_child(cur, 2));
             printf("%s: .long %d\n", name, value);
-            register_global_var(cur);
             break;
           } 
           case var_decl_node: 
             // declare uninitialized global var
             printf("%s: .long 0\n", name);
-            register_global_var(cur);
-            break;
-          case extern_var_decl_node: 
-            register_global_var(cur);
-            break;
-          case function_impl_node:
-          case function_decl_node: 
-            register_function(cur);
             break;
         }
+        break;
       }
     }
   }
@@ -900,20 +772,15 @@ void generate_code(struct Node* root) {
       case function_impl_node: {
         char* name = get_symbol(get_child(cur, 1));
         struct Node* stmts = get_child(cur, 3);
-        register_function_params(cur);
         return_label = new_temp_label();
 
-        string_map_clear(local_vars);
-        // register local vars for later look up 
-        register_local_vars(stmts);
-
-        in_function = 1;
+        lst = get_lst(gst, name);
 
         // function entry point
         printf("%s:\n", name);
         printf("push ebp\n");
         printf("mov ebp, esp\n");
-        printf("sub esp, %d\n", string_map_size(local_vars) * WORD_SIZE);
+        printf("sub esp, %d\n", local_var_count(lst) * WORD_SIZE);
 
         generate_stmts(stmts);
         // function epilog
@@ -922,35 +789,13 @@ void generate_code(struct Node* root) {
         printf("pop ebp\n");
         printf("ret\n");
 
-        in_function = 0;
-        string_map_clear(function_params);
+        lst = 0;
+
         break;
       }
-      case enum_node: {
-        int value = 0;
-        // skip enum name
-        for (int j = 1; j < child_num(cur); j++) {
-          struct Node* val_node = get_child(cur, j);
-          char* key = get_symbol(get_child(val_node, 0));
-          if (child_num(val_node) == 2) {
-            value = get_int(get_child(val_node, 1));
-          }
-          register_enum(key, value++);
-        }
-        break;
-      }
-      case struct_node:
-        register_struct_def(cur);
-        break;
     }
   }
 }
 
 void init_codegen() {
-  functions = new_string_map();
-  enums = new_string_map();
-  local_vars = new_string_map();
-  global_var_defs = new_string_map();
-  struct_defs = new_string_map();
-  function_params = new_string_map();
 }

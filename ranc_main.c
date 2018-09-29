@@ -4,6 +4,6 @@ int main() {
   init_tokenizer();
   init_parser();
   init_codegen();
-  generate_code(parse(tokenize()));
+  generate_code(process(parse(tokenize())));
   return 0;
 }

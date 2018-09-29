@@ -56,3 +56,5 @@ cc
 *.gcov
 *.gcno
 *.gcda
+
+ranc_gcc
