@@ -92,91 +92,113 @@ void read_single_token() {
       eat_char();
     }
     buffer_token_type = int_token;
-  } else if (peek_char() == '\'') {
-    eat_char();
-    if (peek_char() == '\\') {
-      eat_char();
-    }
-    eat_char(); 
-    check_and_eat_char('\'');
-    buffer_token_type = char_token;
-  } else if (peek_char() == '"') {
-    eat_char();
-    while (peek_char() != '"') {
-      if (peek_char() == '\\') {
-        eat_char();
-      }
-      eat_char(); 
-    }
-    check_and_eat_char('"');
-    buffer_token_type = string_token;
-  } else if(peek_char() == '|') {
-    eat_char();
-    check_and_eat_char('|');
-    buffer_token_type = operator_token;
-  } else if(peek_char() == '&') {
-    eat_char();
-    if (peek_char() == '&') {
-      eat_char();
-    }
-    buffer_token_type = operator_token;
-  } else if (peek_char() == '=' 
-     || peek_char() == '!'
-     || peek_char() == '<' 
-     || peek_char() == '>') {
-    eat_char();
-    if (peek_char() == '=') {
-      eat_char();
-    }
-    buffer_token_type = operator_token;
-  } else if (peek_char() == '/') {
-    eat_char();
-    if (peek_char() == '/') {
-      eat_char();
-      ignore_line();
-      buffer_token_type = comment_token;
-    } else if (peek_char() == '*') {
-      eat_char();
-      int state = 0;
-      while (state != 2) {
-        if (state == 0) {
-          if (peek_char() == '*') {
-            state = 1;
-          } 
-        } else {
-          if (peek_char() == '/') {
-            state = 2;
-          } else if (peek_char() != '*') {
-            state = 0;
-          }
-        }
-        ignore_char();
-      }
-      buffer_token_type = comment_token;
-    } else if (peek_char() == '=') {
-      eat_char();
-      buffer_token_type = operator_token;
-    } else {
-      buffer_token_type = operator_token;
-    }
-  } else if (strchr("+-*%,?:.", peek_char())) {
-    char c = peek_char();
-    eat_char();
-    if ((c == '+' || c == '-') && peek_char() == c) {
-      eat_char();
-    } else if ((c == '+' || c == '-' || c == '*') && peek_char() == '=') {
-      eat_char();
-    } else if (c == '-' && peek_char() == '>') {
-      eat_char();
-    }
-    buffer_token_type = operator_token;
-  } else if (strchr("[](){};", peek_char())) {
-    eat_char();
-    buffer_token_type = other_token;
-  } else if (peek_char() == EOF) {
-    buffer_token_type = eof_token; 
   } else {
-    check(0, "unknown token");
+    switch (peek_char()) {
+      case '\'': {
+        eat_char();
+        if (peek_char() == '\\') {
+          eat_char();
+        }
+        eat_char(); 
+        check_and_eat_char('\'');
+        buffer_token_type = char_token;
+        break;
+      } 
+      case '"': {
+        eat_char();
+        while (peek_char() != '"') {
+          if (peek_char() == '\\') {
+            eat_char();
+          }
+          eat_char(); 
+        }
+        check_and_eat_char('"');
+        buffer_token_type = string_token;
+        break;
+      } 
+      case '|': {
+        eat_char();
+        check_and_eat_char('|');
+        buffer_token_type = operator_token;
+        break;
+      } 
+      case '&': {
+        eat_char();
+        if (peek_char() == '&') {
+          eat_char();
+        }
+        buffer_token_type = operator_token;
+        break;
+      } 
+      case '=':
+      case '!':
+      case '<':
+      case '>': {
+        eat_char();
+        if (peek_char() == '=') {
+          eat_char();
+        }
+        buffer_token_type = operator_token;
+        break;
+      } 
+      case '/': {
+        eat_char();
+        if (peek_char() == '/') {
+          eat_char();
+          ignore_line();
+          buffer_token_type = comment_token;
+        } else if (peek_char() == '*') {
+          eat_char();
+          int state = 0;
+          while (state != 2) {
+            if (state == 0) {
+              if (peek_char() == '*') {
+                state = 1;
+              } 
+            } else {
+              if (peek_char() == '/') {
+                state = 2;
+              } else if (peek_char() != '*') {
+                state = 0;
+              }
+            }
+            ignore_char();
+          }
+          buffer_token_type = comment_token;
+        } else if (peek_char() == '=') {
+          eat_char();
+          buffer_token_type = operator_token;
+        } else {
+          buffer_token_type = operator_token;
+        }
+        break;
+      }
+      case '+': case '-': case '*': case '%': 
+      case ',': case '?': case ':': case '.': {
+        char c = peek_char();
+        eat_char();
+        if ((c == '+' || c == '-') && peek_char() == c) {
+          eat_char();
+        } else if ((c == '+' || c == '-' || c == '*') && peek_char() == '=') {
+          eat_char();
+        } else if (c == '-' && peek_char() == '>') {
+          eat_char();
+        }
+        buffer_token_type = operator_token;
+        break;
+      } 
+      case '[': case ']': case '(': case ')':
+      case '{': case '}': case ';': {
+        eat_char();
+        buffer_token_type = other_token;
+        break;
+      }
+      case EOF:
+        buffer_token_type = eof_token; 
+        break;
+      default:
+        check(0, "unknown token");
+    }
   }
   append_char(0);
 }

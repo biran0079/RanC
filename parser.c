@@ -516,6 +516,7 @@ struct Node* parse_switch(struct ParserContext* ctx) {
       t = new_node(case_node);
       append_child(t, parse_expr0(ctx)); // int, char literal or enum
       check_and_ignore_token(ctx, ":");
+      int open_paren = match_token(ctx, "{");
       while (1) {
         char* token = peek_token(ctx);
         if (!strcmp(token, "case") || !strcmp(token, "default") || !strcmp(token, "}")) {
@@ -523,16 +524,23 @@ struct Node* parse_switch(struct ParserContext* ctx) {
         }
         append_child(t, parse_stmt(ctx));
       }
+      if (open_paren) {
+        check_and_ignore_token(ctx, "}");
+      }
     } else if (match_token(ctx, "default")) {
       check(default_count++ == 0, "only one default per switch");
       t = new_node(default_node);
       check_and_ignore_token(ctx, ":");
+      int open_paren = match_token(ctx, "{");
       while (1) {
         char* token = peek_token(ctx);
         if (!strcmp(token, "}") || !strcmp(token, "case")) {
           break;
         }
         append_child(t, parse_stmt(ctx));
+      }
+      if (open_paren) {
+        check_and_ignore_token(ctx, "}");
       }
     } else {
       break;
