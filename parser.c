@@ -68,6 +68,9 @@ void init_parser() {
   node_type_str[struct_access_node] = "struct_access";
   node_type_str[struct_ptr_access_node] = "struct_ptr_access";
   node_type_str[struct_node] = "struct";
+  node_type_str[switch_node] = "switch";
+  node_type_str[case_node] = "case";
+  node_type_str[default_node] = "default";
 
   node_type_str[ptr_type_node] = "ptr_type";
   node_type_str[int_type_node] = "int_type";
@@ -500,6 +503,46 @@ struct Node* parse_do_while(struct ParserContext* ctx) {
   return res;
 }
 
+struct Node* parse_switch(struct ParserContext* ctx) {
+  struct Node* res = new_node(switch_node);
+  check_and_ignore_token(ctx, "(");
+  append_child(res, parse_expr(ctx));
+  check_and_ignore_token(ctx, ")");
+  check_and_ignore_token(ctx, "{");
+  while (1) {
+    struct Node* t;
+    int default_count = 0;
+    if (match_token(ctx, "case")) {
+      t = new_node(case_node);
+      append_child(t, parse_expr0(ctx)); // int, char literal or enum
+      check_and_ignore_token(ctx, ":");
+      while (1) {
+        char* token = peek_token(ctx);
+        if (!strcmp(token, "case") || !strcmp(token, "default") || !strcmp(token, "}")) {
+          break;
+        }
+        append_child(t, parse_stmt(ctx));
+      }
+    } else if (match_token(ctx, "default")) {
+      check(default_count++ == 0, "only one default per switch");
+      t = new_node(default_node);
+      check_and_ignore_token(ctx, ":");
+      while (1) {
+        char* token = peek_token(ctx);
+        if (!strcmp(token, "}") || !strcmp(token, "case")) {
+          break;
+        }
+        append_child(t, parse_stmt(ctx));
+      }
+    } else {
+      break;
+    }
+    append_child(res, t);
+  }
+  check_and_ignore_token(ctx, "}");
+  return res;
+}
+
 struct Node* parse_decl(struct ParserContext* ctx);
 
 struct Node* parse_stmt(struct ParserContext* ctx);
@@ -556,6 +599,8 @@ struct Node* parse_stmt(struct ParserContext* ctx) {
     struct Node* res = new_node(continue_node);
     check_and_ignore_token(ctx, ";");
     return res;
+  } else if (match_token(ctx, "switch")) {
+    return parse_switch(ctx);
   } else if (is_base_type(peek_token(ctx))) {
     // If expression starts with a type, then parse as declaration.
     // parse_decl(ctx) handle function declaration as well, 

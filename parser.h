@@ -73,6 +73,9 @@ enum NodeType {
   enum_type_node,
   struct_type_node,
   function_type_node,
+  switch_node,
+  case_node,
+  default_node,
 
   node_type_num,
 };

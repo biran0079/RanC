@@ -39,6 +39,13 @@ int new_temp_label() {
   return tmp_label_count++;
 }
 
+// reserve n consecutive tmp labels, return the first one 
+int reserve_tmp_labels(int n) {
+  int res = tmp_label_count;
+  tmp_label_count += n;
+  return res;
+}
+
 char* get_symbol(struct Node* cur) {
   check(cur->type == symbol_node, "get_symbol");
   return cur->payload;
@@ -665,6 +672,48 @@ void generate_stmt(struct Node* stmt) {
     check(local, "local var not found");
     generate_expr(get_child(stmt, 2));
     printf("mov dword ptr [ebp-%d], eax\n", WORD_SIZE + local->offset);
+  } else if (t == switch_node) {
+    generate_expr(get_child(stmt, 0));
+    printf("push eax\n");
+    int old_break_label = break_label;
+    break_label = new_temp_label();
+    int base_label = reserve_tmp_labels(child_num(stmt) - 1);
+    int default_label = new_temp_label();
+    int has_default = 0;
+    for (int i = 1; i < child_num(stmt); i++) {
+      struct Node* branch = get_child(stmt, i);
+      if (branch->type == case_node) {
+        generate_expr(get_child(branch, 0));
+        printf("cmp eax, [esp]\n");
+        printf("je _%d\n", base_label + i - 1);
+      } else {
+        has_default = 1;
+      }
+    }
+    if (has_default) {
+      printf("jmp _%d\n", default_label);
+    } else {
+      printf("jmp _%d\n", break_label);
+    }
+    for (int i = 1; i < child_num(stmt); i++) {
+      struct Node* branch = get_child(stmt, i);
+      if (branch->type == case_node) {
+        printf("_%d:\n", base_label + i - 1);
+        for (int j = 1; j < child_num(branch); j++) {
+          generate_stmt(get_child(branch, j));
+        }
+      } else if (branch->type == default_node) {
+        printf("_%d:\n", default_label);
+        for (int j = 0; j < child_num(branch); j++) {
+          generate_stmt(get_child(branch, j));
+        }
+      } else {
+        check(0, "only case or default node expected in switch node");
+      }
+    }
+    printf("_%d:\n", break_label);
+    printf("add esp, %d\n", WORD_SIZE);
+    break_label = old_break_label;
   } else if (t == noop_node || t == var_decl_node) {
     // do nothing
   } else {
