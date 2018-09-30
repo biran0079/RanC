@@ -117,3 +117,27 @@ void string_map_clear(struct StringMap* map) {
 int string_map_size(struct StringMap* map) {
   return map->size;
 }
+
+struct List* string_map_keys(struct StringMap* map) {
+  struct List* res = new_list();
+  for (int i = 0; i < list_size(map->buckets); i++) {
+    struct List* bucket = list_get(map->buckets, i);
+    for (int j = 0; j < list_size(bucket); j++) {
+      struct Entry* e = list_get(bucket, j);
+      list_add(res, e->k);
+    }
+  }
+  return res;
+}
+
+struct List* string_map_values(struct StringMap* map) {
+  struct List* res = new_list();
+  for (int i = 0; i < list_size(map->buckets); i++) {
+    struct List* bucket = list_get(map->buckets, i);
+    for (int j = 0; j < list_size(bucket); j++) {
+      struct Entry* e = list_get(bucket, j);
+      list_add(res, e->v);
+    }
+  }
+  return res;
+}

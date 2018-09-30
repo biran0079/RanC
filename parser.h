@@ -83,12 +83,14 @@ enum NodeType {
 struct Node {
   enum NodeType type;
   struct List* child;
-  char* payload;
+  void* payload;
 };
 
 extern char** node_type_str;
 
 void init_parser();
+
+int is_type_node(struct Node* expr);
 
 struct Node* parse(struct List* tokens);
 
