@@ -34,7 +34,7 @@ ranc_gcc: base.c tokenizer.c parser.c ranc_main.c codegen_x86.c list.c string_ma
 coverage: 
 	gcc -fno-builtin -coverage -O0 -std=gnu99 -m32 base.c list.c string_map.c ast_processor.c tokenizer.c parser.c codegen_x86.c ranc_main.c -o ranc
 	./run_tests
-	ranc_cov base.c list.c string_map.c ast_processor.c tokenizer.c parser.c codegen_x86.c ranc_main.c
+	gcov base.c list.c string_map.c ast_processor.c tokenizer.c parser.c codegen_x86.c ranc_main.c
 
 all: ranc
 
