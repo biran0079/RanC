@@ -18,15 +18,9 @@ struct StringMap* new_string_map() {
 
 int _string_hash(char* s) {
   int h = 0;
-  int i = 0;
-  while (1) {
-    char c = s[i] % 256; // TODO: remove hack when size directiva is available
-    c = c < 0 ? c + 256 : c;
-    if (!c) {
-      break;
-    }
+  while (*s) {
     h *= 131;
-    h += c;
+    h += *s;
     s++;
   }
   return h;
