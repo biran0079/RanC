@@ -42,30 +42,57 @@ char* get_set_cmp_inst(enum NodeType type) {
 
 void generate_expr(struct Node* expr);
 
-int get_ptr_step_size(struct GlobalSymbolTable* gst, struct Node* node) {
-  struct CType* type = get_expr_ctype(gst, lst, node);
+int get_ptr_step_size(struct CType* type) {
   if (type->type == PTR_TYPE) {
     return type->ptr_data->size;
   }
   return 1;
 }
 
+char* get_register_name(int size, char* base) {
+  char* res = malloc(4);
+  res[0] = 0;
+  if (size == 1) {
+    strcat(res, base);
+    strcat(res, "l");
+  } else if (size == WORD_SIZE) {
+    strcat(res, "e");
+    strcat(res, base);
+    strcat(res, "x");
+  } else {
+    check(0, "bad size");
+  }
+  return res;
+}
+
+char* get_size_directive(int size) {
+  if (size == 1) {
+    return "byte";
+  } else if (size == WORD_SIZE) {
+    return "dword";
+  } 
+  check(0, "bad size");
+}
+
 void generate_expr_internal(struct Node* expr, int lvalue) {
   int end_label;
+  struct CType* ctype= get_expr_ctype(gst, lst, expr);
+  int size = ctype->size;
   switch (expr->type) {
     case assignment_node: {
-      generate_expr_internal(get_child(expr, 0), 1);
+      struct Node* left = get_child(expr, 0);
+      generate_expr_internal(left, 1);
       printf("push eax\n");
       generate_expr(get_child(expr, 1));
       printf("pop ebx\n");
-      printf("mov dword ptr [ebx], eax\n");
+      printf("mov %s ptr [ebx], %s\n", get_size_directive(size), get_register_name(size, "a"));
       break;
     } 
     case add_eq_node: {
       generate_expr_internal(get_child(expr, 0), 1);
       printf("push eax\n");
       generate_expr(get_child(expr, 1));
-      int step = get_ptr_step_size(gst, get_child(expr, 0));
+      int step = get_ptr_step_size(ctype);
       if (step > 1) {
         printf("imul eax, %d\n", step);
       }
@@ -78,7 +105,7 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       generate_expr_internal(get_child(expr, 0), 1);
       printf("push eax\n");
       generate_expr(get_child(expr, 1));
-      int step = get_ptr_step_size(gst, get_child(expr, 0));
+      int step = get_ptr_step_size(ctype);
       if (step > 1) {
         printf("imul eax, %d\n", step);
       }
@@ -155,7 +182,7 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       generate_expr(get_child(expr, 0));
       printf("push eax\n");
       generate_expr(get_child(expr, 1));
-      int step = get_ptr_step_size(gst, get_child(expr, 0));
+      int step = get_ptr_step_size(ctype);
       if (step > 1) {
         printf("imul eax, %d\n", step);
       }
@@ -167,7 +194,7 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       generate_expr(get_child(expr, 0));
       printf("push eax\n");
       generate_expr(get_child(expr, 1));
-      int step = get_ptr_step_size(gst, get_child(expr, 0));
+      int step = get_ptr_step_size(ctype);
       if (step > 1) {
         printf("imul eax, %d\n", step);
       }
@@ -221,23 +248,24 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       char* op;
       if (lvalue) {
         op = "lea";
+      } else if (size < WORD_SIZE){
+        op = "movzx";
       } else {
         op = "mov";
       }
       if (local) {
-        printf("%s eax, [ebp-%d]\n", op, WORD_SIZE + local->offset);
+        printf("%s eax, %s ptr [ebp - %d]\n", op, get_size_directive(size), WORD_SIZE + local->offset);
       } else if (param) {
-        printf("%s eax, [ebp+%d]\n", op, 2 * WORD_SIZE + param->offset);
+        printf("%s eax, %s ptr [ebp + %d]\n", op, get_size_directive(size), 2 * WORD_SIZE + param->offset);
       } else if (enum_entry) {
         check(!lvalue, "enum cannot be lvalue\n");
         printf("%s eax, %d\n", op, enum_entry->value);
       } else {
-        printf("%s eax, [%s]\n", op, name);
+        printf("%s eax, %s ptr [%s]\n", op, get_size_directive(size),  name);
       }
       break;
     } 
     case access_node: {
-      int type_size = get_expr_ctype(gst, lst, expr)->size;
       generate_expr(get_child(expr, 0));
       printf("push eax\n");
       generate_expr(get_child(expr, 1));
@@ -246,10 +274,12 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       char* op;
       if (lvalue) {
         op = "lea";
+      } else if (size < WORD_SIZE) {
+        op = "movzx"; // zero extend
       } else {
         op = "mov";
       }
-      printf("%s eax, dword ptr [eax * %d + ebx]\n", op, type_size);
+      printf("%s eax, %s ptr [eax * %d + ebx]\n", op, get_size_directive(size), size);
       break;
     } 
     case call_node: {
@@ -273,18 +303,18 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
     } 
     case inc_prefix_node: {
       generate_expr_internal(get_child(expr, 0), 1);
-      printf("add dword ptr [eax], %d\n", get_ptr_step_size(gst, get_child(expr, 0)));
+      printf("add dword ptr [eax], %d\n", get_ptr_step_size(ctype));
       printf("mov eax, dword ptr [eax]\n");
       break;
     } 
     case dec_prefix_node: {
       generate_expr_internal(get_child(expr, 0), 1);
-      printf("sub dword ptr [eax], %d\n", get_ptr_step_size(gst, get_child(expr, 0)));
+      printf("sub dword ptr [eax], %d\n", get_ptr_step_size(ctype));
       printf("mov eax, dword ptr [eax]\n");
       break;
     } 
     case inc_suffix_node: {
-      int step = get_ptr_step_size(gst, get_child(expr, 0));
+      int step = get_ptr_step_size(ctype);
       generate_expr_internal(get_child(expr, 0), 1);
       printf("add dword ptr [eax], %d\n", step);
       printf("mov eax, dword ptr [eax]\n");
@@ -292,7 +322,7 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       break;
     } 
     case dec_suffix_node: {
-      int step = get_ptr_step_size(gst, get_child(expr, 0));
+      int step = get_ptr_step_size(ctype);
       generate_expr_internal(get_child(expr, 0), 1);
       printf("sub dword ptr [eax], %d\n", step);
       printf("mov eax, dword ptr [eax]\n");
@@ -325,8 +355,9 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
     } 
     case dereference_node: {
       generate_expr(get_child(expr, 0));
+      char* op = ctype->size < WORD_SIZE ? "movzx" : "mov";
       if (!lvalue) {
-        printf("mov eax, [eax]\n");
+        printf("%s eax, %s ptr [eax]\n", op, get_size_directive(ctype->size));
       }
       break;
     } 
@@ -338,7 +369,8 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       int offset = get_struct_member_offset(gst, get_expr_ctype(gst, lst, left), name);
       printf("add eax, %d\n", offset);
       if (!lvalue) {
-        printf("mov eax, [eax]\n");
+        char* op = size < WORD_SIZE ? "movzx" : "mov";
+        printf("%s eax, %s ptr [eax]\n", op, get_size_directive(size));
       }
       break;
     } 
@@ -352,7 +384,8 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       int offset = get_struct_member_offset(gst, left_type->ptr_data, name);
       printf("add eax, %d\n", offset);
       if (!lvalue) {
-        printf("mov eax, [eax]\n");
+        char* op = size < WORD_SIZE ? "movzx" : "mov";
+        printf("%s eax, %s ptr [eax]\n", op, get_size_directive(size));
       }
       break;
     } 

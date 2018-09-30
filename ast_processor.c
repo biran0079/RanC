@@ -268,13 +268,13 @@ struct CType* get_expr_ctype(struct GlobalSymbolTable* gst, struct LocalSymbolTa
     case dec_prefix_node:
     case dec_suffix_node:
       return get_expr_ctype(gst, lst, get_child(expr, 0));
-    case int_node:
-      return new_ctype_with_base_type(INT_TYPE);
     case string_node: {
       struct CType* res = new_ctype_with_base_type(PTR_TYPE);
       res->ptr_data = new_ctype_with_base_type(CHAR_TYPE);
       return res;
     }
+    case int_node:
+    case sizeof_node:
     case char_node:
       // char literal is treated the same as integer
       return new_ctype_with_base_type(INT_TYPE);
@@ -383,3 +383,4 @@ int get_struct_member_offset(struct GlobalSymbolTable* gst, struct CType* struct
   check(member, "member does not exist");
   return member->offset;
 }
+

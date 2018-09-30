@@ -1,4 +1,5 @@
 void printf();
+void malloc();
 char* g() {
   return "biran";
 }

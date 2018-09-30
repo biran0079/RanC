@@ -1,6 +1,6 @@
 #include "tokenizer.h"
 
-char cur_char = 0;
+int cur_char = 0;
 
 char* buffer_token;
 int buffer_len = 0;
@@ -21,7 +21,7 @@ void init_tokenizer() {
   token_type_str[eof_token] = "eof";
 }
 
-char peek_char() {
+int peek_char() {
   if (cur_char == 0) {
     cur_char = getchar();
   }

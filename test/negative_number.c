@@ -1,4 +1,5 @@
 void printf();
+void* malloc();
 int main() {
   printf("%d\n", -1);
   int a = 2;

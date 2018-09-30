@@ -1,3 +1,5 @@
+void printf();
+void* malloc();
 struct A {
   int a;
   char b;
