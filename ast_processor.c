@@ -276,7 +276,8 @@ struct CType* get_expr_ctype(struct GlobalSymbolTable* gst, struct LocalSymbolTa
       return res;
     }
     case char_node:
-      return new_ctype_with_base_type(CHAR_TYPE);
+      // char literal is treated the same as integer
+      return new_ctype_with_base_type(INT_TYPE);
     case symbol_node:{
       struct CType* res = lookup_symbol_ctype(gst, lst, get_symbol(expr));
       check(res, "symbol not found");
