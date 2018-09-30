@@ -42,190 +42,10 @@ char* get_set_cmp_inst(enum NodeType type) {
 
 void generate_expr(struct Node* expr);
 
-int size_of_type(struct Node* type_node) {
-  int t = type_node->type;
-  switch (type_node->type) {
-    case int_type_node:
-    case function_type_node:
-    case ptr_type_node:
-    case enum_type_node:
-      return WORD_SIZE;
-    case char_type_node:
-    case void_type_node:
-      return 1;
-    case struct_type_node: {
-      char* name = get_symbol(get_child(type_node, 0));
-      struct Node* node = lookup_struct_def(gst, name);
-      check(node, "unknown struct");
-      int res = 0;
-      for (int i = 1; i < child_num(node); i++) {
-        struct Node* decl = get_child(node, i);
-        res += max(WORD_SIZE, size_of_type(get_child(decl, 0)));
-      }
-      return res;
-    }
-    default:
-      check(0, "unknown type node");
-  }
-}
-
-struct Node* get_symbol_type_node(char* s) {
-  struct LocalVar* local = lookup_local_var(lst, s);
-  if (local) {
-    return get_child(local->def, 0);
-  }
-  struct FunctionParam* param = lookup_function_param(lst, s);
-  if (param) {
-    return get_child(param->def, 0);
-  }
-  struct Node* function = lookup_function(gst, s);
-  if (function) {
-    struct Node* res = new_node(function_type_node);
-    append_child(res, get_child(function, 0));
-    append_child(res, get_child(function, 2));
-    return res;
-  }
-  if (lookup_enum(gst, s)) {
-    return new_node(enum_type_node);
-  }
-  struct Node* node = lookup_global_var_def(gst, s);
-  if (node) {
-    return get_child(node, 0);
-  }
-  return 0;
-}
-
-struct Node* lookup_struct_member_type_node(struct Node* struct_type, char* name) {
-  check(struct_type->type == struct_type_node, "lookup_struct_member_type_node");
-  struct Node* def = lookup_struct_def(gst, get_symbol(get_child(struct_type, 0)));
-  check(def, "struct def not found");
-  for (int i = 1; i < child_num(def); i++) {
-    struct Node* t = get_child(def, i);
-    if (!strcmp(name, get_symbol(get_child(t, 1)))) {
-      return get_child(t, 0);
-    }
-  }
-  check(0, "struct member not found");
-}
-
-int get_struct_member_offset(struct Node* struct_type, char* name) {
-  check(struct_type->type == struct_type_node, "get_struct_member_offset");
-  struct Node* def = lookup_struct_def(gst, get_symbol(get_child(struct_type, 0)));
-  check(def, "struct def not found");
-  int res = 0;
-  for (int i = 1; i < child_num(def); i++) {
-    struct Node* t = get_child(def, i);
-    if (!strcmp(name, get_symbol(get_child(t, 1)))) {
-      return res;
-    }
-    res += size_of_type(get_child(t, 0));
-  }
-  check(0, "struct member not found");
-}
-
-struct Node* get_expr_type_node(struct Node* expr) {
-  switch (expr->type) {
-    case assignment_node:
-    case add_eq_node:
-    case sub_eq_node:
-    case mul_eq_node:
-    case div_eq_node:
-    case or_node:
-    case and_node:
-    case not_node:
-    case eq_node:
-    case ne_node:
-    case lt_node:
-    case gt_node:
-    case le_node:
-    case ge_node:
-    case add_node:
-    case sub_node:
-    case mul_node:
-    case div_node:
-    case mod_node:
-    case negative_node:
-    case inc_prefix_node:
-    case inc_suffix_node:
-    case dec_prefix_node:
-    case dec_suffix_node:
-      return get_expr_type_node(get_child(expr, 0));
-    case int_node:
-      return new_node(int_type_node);
-    case string_node: {
-      struct Node* res = new_node(ptr_type_node);
-      append_child(res, new_node(char_type_node));
-      return res;
-    }
-    case char_node:
-      return new_node(char_type_node);
-    case symbol_node: {
-      struct Node* type_node = get_symbol_type_node(get_symbol(expr));
-      check(type_node, "unknown symbol");
-      return type_node;
-    }
-    case access_node: {
-      struct Node* base = get_expr_type_node(get_child(expr, 0));
-      check(base->type == ptr_type_node, "illegal array accessing");
-      return get_child(base, 0);
-    }
-    case call_node: {
-      struct Node* fun = get_expr_type_node(get_child(expr, 0));
-      check(fun->type == function_type_node, "illegal function call");
-      return get_child(fun, 0);
-    }
-    case ternary_condition_node:
-      return get_expr_type_node(get_child(expr, 1));
-    case address_of_node: {
-      struct Node* res = new_node(ptr_type_node);
-      append_child(res, get_expr_type_node(get_child(expr, 0)));
-      return res;
-    }
-    case dereference_node: {
-      struct Node* tmp = get_expr_type_node(get_child(expr, 0));
-      check(tmp->type == ptr_type_node, "only ptr_type can be dereferenced");
-      return get_child(tmp, 0);
-    }
-    case struct_access_node: {
-      struct Node* tmp = get_expr_type_node(get_child(expr, 0));
-      check(tmp->type == struct_type_node, ". only works for struct");
-      return lookup_struct_member_type_node(tmp, get_symbol(get_child(expr, 1)));
-    }
-    case struct_ptr_access_node: {
-      struct Node* ptr = get_expr_type_node(get_child(expr, 0));
-      check(ptr->type == ptr_type_node, "-> only works for struct pointer");
-      struct Node* tmp = get_child(ptr, 0);
-      check(tmp->type == struct_type_node, "-> only works for struct pointer");
-      return lookup_struct_member_type_node(tmp, get_symbol(get_child(expr, 1)));
-    }
-    default:
-      check(0, "unknown expr node type");
-  }
-}
-
-int get_expr_type_size(struct Node* expr) {
-  return size_of_type(get_expr_type_node(expr));
-}
-
-int is_type_node(struct Node* expr) {
-  switch (expr->type) {
-    case ptr_type_node:
-    case int_type_node:
-    case char_type_node:
-    case void_type_node:
-    case enum_type_node:
-    case function_type_node:
-    case struct_type_node:
-      return 1;
-    default:
-      return 0;
-  }
-}
-
-int get_ptr_step_size(struct Node* expr) {
-  struct Node* type_node = get_expr_type_node(expr);
-  if (type_node->type == ptr_type_node) {
-    return size_of_type(get_child(type_node, 0));
+int get_ptr_step_size(struct GlobalSymbolTable* gst, struct Node* node) {
+  struct CType* type = get_expr_ctype(gst, lst, node);
+  if (type->type == PTR_TYPE) {
+    return type->ptr_data->size;
   }
   return 1;
 }
@@ -245,7 +65,7 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       generate_expr_internal(get_child(expr, 0), 1);
       printf("push eax\n");
       generate_expr(get_child(expr, 1));
-      int step = get_ptr_step_size(get_child(expr, 0));
+      int step = get_ptr_step_size(gst, get_child(expr, 0));
       if (step > 1) {
         printf("imul eax, %d\n", step);
       }
@@ -258,7 +78,7 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       generate_expr_internal(get_child(expr, 0), 1);
       printf("push eax\n");
       generate_expr(get_child(expr, 1));
-      int step = get_ptr_step_size(get_child(expr, 0));
+      int step = get_ptr_step_size(gst, get_child(expr, 0));
       if (step > 1) {
         printf("imul eax, %d\n", step);
       }
@@ -335,7 +155,7 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       generate_expr(get_child(expr, 0));
       printf("push eax\n");
       generate_expr(get_child(expr, 1));
-      int step = get_ptr_step_size(get_child(expr, 0));
+      int step = get_ptr_step_size(gst, get_child(expr, 0));
       if (step > 1) {
         printf("imul eax, %d\n", step);
       }
@@ -347,7 +167,7 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       generate_expr(get_child(expr, 0));
       printf("push eax\n");
       generate_expr(get_child(expr, 1));
-      int step = get_ptr_step_size(get_child(expr, 0));
+      int step = get_ptr_step_size(gst, get_child(expr, 0));
       if (step > 1) {
         printf("imul eax, %d\n", step);
       }
@@ -417,7 +237,7 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       break;
     } 
     case access_node: {
-      int type_size = get_expr_type_size(expr);
+      int type_size = get_expr_ctype(gst, lst, expr)->size;
       generate_expr(get_child(expr, 0));
       printf("push eax\n");
       generate_expr(get_child(expr, 1));
@@ -453,18 +273,18 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
     } 
     case inc_prefix_node: {
       generate_expr_internal(get_child(expr, 0), 1);
-      printf("add dword ptr [eax], %d\n", get_ptr_step_size(get_child(expr, 0)));
+      printf("add dword ptr [eax], %d\n", get_ptr_step_size(gst, get_child(expr, 0)));
       printf("mov eax, dword ptr [eax]\n");
       break;
     } 
     case dec_prefix_node: {
       generate_expr_internal(get_child(expr, 0), 1);
-      printf("sub dword ptr [eax], %d\n", get_ptr_step_size(get_child(expr, 0)));
+      printf("sub dword ptr [eax], %d\n", get_ptr_step_size(gst, get_child(expr, 0)));
       printf("mov eax, dword ptr [eax]\n");
       break;
     } 
     case inc_suffix_node: {
-      int step = get_ptr_step_size(get_child(expr, 0));
+      int step = get_ptr_step_size(gst, get_child(expr, 0));
       generate_expr_internal(get_child(expr, 0), 1);
       printf("add dword ptr [eax], %d\n", step);
       printf("mov eax, dword ptr [eax]\n");
@@ -472,7 +292,7 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       break;
     } 
     case dec_suffix_node: {
-      int step = get_ptr_step_size(get_child(expr, 0));
+      int step = get_ptr_step_size(gst, get_child(expr, 0));
       generate_expr_internal(get_child(expr, 0), 1);
       printf("sub dword ptr [eax], %d\n", step);
       printf("mov eax, dword ptr [eax]\n");
@@ -494,10 +314,8 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
     } 
     case sizeof_node: {
       struct Node* node = get_child(expr, 0);
-      if (!is_type_node(node)) {
-        node = get_expr_type_node(node);
-      }
-      printf("mov eax, %d\n", size_of_type(node));
+      struct CType* type = is_type_node(node) ? new_ctype_from_type_node(gst, node) : get_expr_ctype(gst, lst, node);
+      printf("mov eax, %d\n", type->size);
       break;
     } 
     case address_of_node: {
@@ -517,7 +335,7 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       struct Node* right = get_child(expr, 1);
       generate_expr_internal(left, 1);
       char* name = get_symbol(right);
-      int offset = get_struct_member_offset(get_expr_type_node(left), name);
+      int offset = get_struct_member_offset(gst, get_expr_ctype(gst, lst, left), name);
       printf("add eax, %d\n", offset);
       if (!lvalue) {
         printf("mov eax, [eax]\n");
@@ -529,9 +347,9 @@ void generate_expr_internal(struct Node* expr, int lvalue) {
       struct Node* right = get_child(expr, 1);
       generate_expr(left);
       char* name = get_symbol(right);
-      struct Node* left_type = get_expr_type_node(left);
-      check(left_type->type == ptr_type_node, "-> only applys to struct ptr.");
-      int offset = get_struct_member_offset(get_child(left_type, 0), name);
+      struct CType* left_type = get_expr_ctype(gst, lst, left);
+      check(left_type->type == PTR_TYPE && left_type->ptr_data->type == STRUCT_TYPE, "-> only applys to struct ptr.");
+      int offset = get_struct_member_offset(gst, left_type->ptr_data, name);
       printf("add eax, %d\n", offset);
       if (!lvalue) {
         printf("mov eax, [eax]\n");

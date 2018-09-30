@@ -27,4 +27,8 @@ void string_map_clear(struct StringMap* map);
 
 int string_map_size(struct StringMap* map);
 
+struct List* string_map_keys(struct StringMap* map);
+
+struct List* string_map_values(struct StringMap* map);
+
 #endif

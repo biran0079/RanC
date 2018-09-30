@@ -82,6 +82,21 @@ void init_parser() {
   node_type_str[invalid_node] = "invalid";
 }
 
+int is_type_node(struct Node* expr) {
+  switch (expr->type) {
+    case ptr_type_node:
+    case int_type_node:
+    case char_type_node:
+    case void_type_node:
+    case enum_type_node:
+    case function_type_node:
+    case struct_type_node:
+      return 1;
+    default:
+      return 0;
+  }
+}
+
 struct Node* new_node(enum NodeType type) {
   struct Node* res = malloc(sizeof(struct Node));
   res->type = type;
