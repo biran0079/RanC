@@ -83,6 +83,35 @@ void init_parser() {
   node_type_str[invalid_node] = "invalid";
 }
 
+void print_nearby_code(struct ParserContext* ctx, int n) {
+  struct Token* token = list_get(ctx->tokens, ctx->idx);
+  int start_line = max(0, token->line - 1 - n);
+  int end_line = min(list_size(ctx->code), token->line + n);
+  for (int i = start_line; i < end_line; i++) {
+    char* line = list_get(ctx->code, i);
+    printf("%-6d%s\n", i + 1, line);
+    if (i == token->line - 1) {
+      int st = token->start_col - 1;
+      int ed = token->end_col - 1;
+      for (int j = 0; j < st + 6; j++) {
+        printf(" ");
+      }
+      for (int j = st; j < ed; j++) {
+        printf("^");
+      }
+      printf("\n");
+    }
+  }
+}
+
+int parser_check(struct ParserContext* ctx, int state, char* msg) {
+  if (!state) {
+    printf("Parser check fail: %s\n", msg);
+    print_nearby_code(ctx, 3);
+    exit(-1);
+  }
+}
+
 int is_type_node(struct Node* expr) {
   switch (expr->type) {
     case ptr_type_node:
@@ -174,7 +203,7 @@ int match_token(struct ParserContext* ctx, char* s) {
 }
 
 void check_and_ignore_token(struct ParserContext* ctx, char* s) {
-  check(match_token(ctx, s), "check_and_ignore_token failed\n");
+  parser_check(ctx, match_token(ctx, s), "check_and_ignore_token failed\n");
 }
 
 struct Node* parse_type(struct ParserContext* ctx) {
@@ -192,9 +221,7 @@ struct Node* parse_type(struct ParserContext* ctx) {
   } else if (match_token(ctx, "void")) {
     res = new_node(void_type_node);
   } else {
-    struct Token* tk = list_get(ctx->tokens, ctx->idx);
-    printf("%d!!\n", tk->line);
-    check(0, "unknown type\n");
+    parser_check(ctx, 0, "unknown type\n");
   }
   while (match_token(ctx, "*")) { 
     struct Node* t = res;
@@ -229,7 +256,7 @@ struct Node* parse_object(struct ParserContext* ctx) {
     res = parse_expr(ctx);
     check_and_ignore_token(ctx, ")");
   } else {
-    check(0, "failed to parse object\n");
+    parser_check(ctx, 0, "failed to parse object\n");
   }
   while (1) {
     if (match_token(ctx, "[")) {
@@ -252,13 +279,13 @@ struct Node* parse_object(struct ParserContext* ctx) {
     } else if (match_token(ctx, "->")) {
       struct Node* t = new_node(struct_ptr_access_node);
       append_child(t, res);
-      check(peek_token_type(ctx) == symbol_token, "-> only follows symbol token");
+      parser_check(ctx, peek_token_type(ctx) == symbol_token, "-> only follows symbol token");
       append_child(t, new_node_with_payload(symbol_node, next_token(ctx)));
       res = t;
     } else if (match_token(ctx, ".")) {
       struct Node* t = new_node(struct_access_node);
       append_child(t, res);
-      check(peek_token_type(ctx) == symbol_token, ". only follows symbol token");
+      parser_check(ctx, peek_token_type(ctx) == symbol_token, ". only follows symbol token");
       append_child(t, new_node_with_payload(symbol_node, next_token(ctx)));
       res = t;
     } else {
@@ -561,7 +588,7 @@ struct Node* parse_switch(struct ParserContext* ctx) {
         check_and_ignore_token(ctx, "}");
       }
     } else if (match_token(ctx, "default")) {
-      check(default_count++ == 0, "only one default per switch");
+      parser_check(ctx, default_count++ == 0, "only one default per switch");
       t = new_node(default_node);
       check_and_ignore_token(ctx, ":");
       int open_paren = match_token(ctx, "{");
@@ -671,7 +698,7 @@ struct Node* parse_params(struct ParserContext* ctx) {
     struct Node* param = new_node(param_node);
     append_child(params, param);
     struct Node* type_node = parse_type(ctx);
-    check(type_node->type != struct_type_node, "only struct pointer param is supported for now");
+    parser_check(ctx, type_node->type != struct_type_node, "only struct pointer param is supported for now");
     append_child(param, type_node);
     append_child(param, new_node_with_payload(symbol_node, next_token(ctx)));
     match_token(ctx, ","); // Won't match for the last param.
@@ -695,7 +722,7 @@ struct Node* parse_decl(struct ParserContext* ctx) {
       append_child(res, value);
       append_child(value, new_node_with_payload(symbol_node, next_token(ctx)));
       if (match_token(ctx, "=")) {
-        check(peek_token_type(ctx) == int_token, "int token expected for enum initialization");
+        parser_check(ctx, peek_token_type(ctx) == int_token, "int token expected for enum initialization");
         struct Node* int_value = new_node_with_payload(int_node, next_token(ctx));
         append_child(value, int_value);
       }
@@ -711,14 +738,14 @@ struct Node* parse_decl(struct ParserContext* ctx) {
     check_and_ignore_token(ctx, "{");
     while (!match_token(ctx, "}")) {
       struct Node* decl = parse_decl(ctx);
-      check(decl->type == var_decl_node, "only variable delaration is allowed in struct");
+      parser_check(ctx, decl->type == var_decl_node, "only variable delaration is allowed in struct");
       append_child(res, decl);
     }
     check_and_ignore_token(ctx, ";");
     return res;
   } 
   struct Node* type_node = parse_type(ctx);
-  check(type_node->type != struct_type_node, "only struct pointer is supported for now");
+  parser_check(ctx, type_node->type != struct_type_node, "only struct pointer is supported for now");
   struct Node* res;
   char* name = next_token(ctx);
   if (!strcmp(peek_token(ctx), "(")) {

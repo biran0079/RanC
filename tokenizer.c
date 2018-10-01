@@ -39,12 +39,12 @@ void append_char(struct TokenizerContex* ctx, char c) {
 
 void consume_current_char(struct TokenizerContex* ctx) {
   check(ctx->cur_char, "peek_char() should be called before consume_current_char()");
-  string_buffer_append(ctx->line_buffer, ctx->cur_char);
   if (ctx->cur_char == '\n' || ctx->cur_char == EOF) {
     list_add(ctx->result->code, string_buffer_to_string_and_clear(ctx->line_buffer));
     ctx->line_number++;
     ctx->col_number = 1;
   } else {
+    string_buffer_append(ctx->line_buffer, ctx->cur_char);
     ctx->col_number++;
   }
   ctx->cur_char = 0;  
@@ -79,8 +79,22 @@ int is_letter(char c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
+void print_recent_code(struct TokenizerContex* ctx, int n) {
+  int st = max(0, list_size(ctx->result->code) - n);
+  for (int i = st; i < list_size(ctx->result->code); i++) {
+    char* line = list_get(ctx->result->code, i);
+    printf("%-6d%s\n", i + 1, line);
+  }
+  printf("%-6d%s%c\n", ctx->line_number,
+      string_buffer_to_string_and_clear(ctx->line_buffer), peek_char(ctx));
+}
+
 void check_and_eat_char(struct TokenizerContex* ctx, char c) {
-  check(peek_char(ctx) == c, "check_and_eat_char");
+  if (peek_char(ctx) != c) {
+    printf("Tokenizer failed: expect '%c', got '%c'\n", c, peek_char(ctx));
+    print_recent_code(ctx, 3);
+    exit(-1);
+  }
   eat_char(ctx);
 }
 
@@ -214,7 +228,9 @@ void read_single_token(struct TokenizerContex* ctx) {
         ctx->cur_token_type = eof_token; 
         break;
       default:
-        check(0, "unknown token");
+        printf("Tokenizer failed: unknown token\n");
+        print_recent_code(ctx, 3);
+        exit(-1);
     }
   }
   peek_char(ctx); // make sure cursor is pointing at the first char after current token
