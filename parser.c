@@ -5,6 +5,7 @@ char** node_type_str;
 
 struct ParserContext {
   struct List* tokens;
+  struct List* code;
   int idx;
 };
 
@@ -191,6 +192,8 @@ struct Node* parse_type(struct ParserContext* ctx) {
   } else if (match_token(ctx, "void")) {
     res = new_node(void_type_node);
   } else {
+    struct Token* tk = list_get(ctx->tokens, ctx->idx);
+    printf("%d!!\n", tk->line);
     check(0, "unknown type\n");
   }
   while (match_token(ctx, "*")) { 
@@ -759,10 +762,11 @@ struct Node* parse_prog(struct ParserContext* ctx) {
   return res;
 }
 
-struct Node* parse(struct List* tokens) {
+struct Node* parse(struct TokenizerOutput* input) {
   struct ParserContext* ctx = malloc(sizeof(struct ParserContext));
   ctx->idx = 0;
-  ctx->tokens = tokens;
+  ctx->tokens = input->tokens;
+  ctx->code = input->code;
   return parse_prog(ctx);
 }
 

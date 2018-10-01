@@ -4,7 +4,6 @@
 #include "base.h"
 #include "list.h"
 
-#define MAX_TOKEN_LEN 1023
 #define EOF -1
 
 enum TokenType {
@@ -22,11 +21,19 @@ enum TokenType {
 struct Token {
   enum TokenType type;
   char* s;
+  int line;
+  int start_col; // inclusive
+  int end_col;   // exclusive
 };
 
-struct Token* new_token(enum TokenType type, char* s);
+struct TokenizerOutput {
+  struct List* tokens;
+  struct List* code;
+};
 
-struct List* tokenize();
+struct Token* new_token(enum TokenType type, char* s, int line, int start_col, int end_col);
+
+struct TokenizerOutput* tokenize();
 void init_tokenizer();
 
 extern char** token_type_str;

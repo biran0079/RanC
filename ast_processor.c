@@ -10,7 +10,7 @@ enum BaseType _get_data_type(struct Node* type_node) {
     case enum_type_node: return ENUM_TYPE;
     case struct_type_node: return STRUCT_TYPE;
     case function_type_node: return FUNCTION_TYPE;
-    default: check(0, "unknown type");
+    default: check(0, "unknown type node");
   }
 }
 

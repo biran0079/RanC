@@ -92,7 +92,7 @@ void init_parser();
 
 int is_type_node(struct Node* expr);
 
-struct Node* parse(struct List* tokens);
+struct Node* parse(struct TokenizerOutput* tokens);
 
 struct Node* new_node(enum NodeType type);
 
