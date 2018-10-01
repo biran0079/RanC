@@ -30,7 +30,7 @@ parser: base.s parser.s parser_main.s tokenizer.s list.s
 	gcc $(FLAG) $^ -o $@
 
 ranc_gcc: base.c tokenizer.c parser.c ranc_main.c codegen_x86.c list.c string_map.c string_buffer.c ast_processor.c
-	gcc -fno-builtin -g -std=gnu99 -m32 base.c list.c string_map.c string_buffer.c ast_processor.c tokenizer.c parser.c codegen_x85.c ranc_main.c -o ranc_gcc
+	gcc -fno-builtin -g -std=gnu99 -m32 base.c list.c string_map.c string_buffer.c ast_processor.c tokenizer.c parser.c codegen_x86.c ranc_main.c -o ranc_gcc
 
 coverage: 
 	gcc -fno-builtin -coverage -O0 -std=gnu99 -m32 base.c list.c string_map.c string_buffer.c ast_processor.c tokenizer.c parser.c codegen_x86.c ranc_main.c -o ranc
